@@ -7,7 +7,7 @@ export const LiveReload = () => {
 	const router = useRouter();
 
 	useEffect(() => {
-		const es = new EventSource(`http://localhost:${process.env.NEXT_PUBLIC_SSE_PORT}`);
+		const es = new EventSource('/api/sse');
 		es.onmessage = () => router.refresh();
 		return () => es.close();
 	}, [router]);

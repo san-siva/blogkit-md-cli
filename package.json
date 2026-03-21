@@ -8,12 +8,14 @@
 	"files": [
 		"src",
 		"bin",
+		".next",
 		"next.config.ts",
 		"next-env.d.ts",
 		"tsconfig.json"
 	],
 	"scripts": {
-		"prepublishOnly": "npm ci",
+		"build": "next build",
+		"prepublishOnly": "npm ci && npm run build",
 		"lint": "eslint . --config eslint.config.ts",
 		"fix": "eslint . --config eslint.config.ts --fix"
 	},

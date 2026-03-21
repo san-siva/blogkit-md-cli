@@ -1,8 +1,8 @@
 import { createServer } from 'node:http';
 import type { ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { exec, spawn, spawnSync } from 'node:child_process';
-import { watch, existsSync } from 'node:fs';
+import { exec, spawn } from 'node:child_process';
+import { watch } from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
@@ -47,16 +47,7 @@ const sseServer = createServer((req, res) => {
 sseServer.listen(0, async () => {
 	const ssePort = (sseServer.address() as AddressInfo).port;
 	const nextPort = requestedPort || await getFreePort();
-	const nextEnv = { ...process.env, MARKDOWN_FILE: markdownPath, NEXT_PUBLIC_SSE_PORT: String(ssePort) };
-
-	if (!existsSync(path.join(packageRoot, '.next', 'BUILD_ID'))) {
-		console.log('Building...');
-		const build = spawnSync(nextBin, ['build'], { cwd: packageRoot, env: nextEnv, stdio: 'inherit' });
-		if (build.status !== 0) {
-			sseServer.close();
-			process.exit(build.status ?? 1);
-		}
-	}
+	const nextEnv = { ...process.env, MARKDOWN_FILE: markdownPath, SSE_PORT: String(ssePort) };
 
 	const markdownFilename = path.basename(markdownPath);
 	watch(path.dirname(markdownPath), (_, filename) => {
