@@ -16,8 +16,11 @@ const nextBin = path.join(packageRoot, 'node_modules/.bin/next');
 
 writeFileSync(triggerPath, `export const reloadTrigger = '${Date.now()}';\n`);
 
-watch(markdownPath, () => {
-	writeFileSync(triggerPath, `export const reloadTrigger = '${Date.now()}';\n`);
+const markdownFilename = path.basename(markdownPath);
+watch(path.dirname(markdownPath), (_, filename) => {
+	if (filename === markdownFilename) {
+		writeFileSync(triggerPath, `export const reloadTrigger = '${Date.now()}';\n`);
+	}
 });
 
 const child = spawn(nextBin, ['dev'], {
