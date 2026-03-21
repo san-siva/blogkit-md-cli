@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"description": "CLI tool to preview markdown files as blogkit-md blog posts",
 	"bin": {
-		"blogkit-md": "./bin/blogkit-md.ts"
+		"blogkit-md": "./bin/blogkit-md"
 	},
 	"files": [
 		"app",

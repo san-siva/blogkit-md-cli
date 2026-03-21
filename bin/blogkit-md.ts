@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 import { exec, spawn } from 'node:child_process';
 import { stat, writeFileSync } from 'node:fs';
 import path from 'node:path';
