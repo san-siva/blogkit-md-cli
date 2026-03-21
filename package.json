@@ -30,6 +30,7 @@
 		"@types/react-dom": "^19",
 		"typescript": "^5.0.0"
 	},
+	"license": "MIT",
 	"preferGlobal": true,
 	"engines": {
 		"node": ">=18.0.0"
