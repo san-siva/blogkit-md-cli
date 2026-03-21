@@ -1,3 +1,17 @@
-#!/bin/sh
-dir=$(dirname "$(readlink "$0" 2>/dev/null || echo "$0")")
-exec node "$dir/blogkit-md.js" "$@"
+#!/usr/bin/env bash
+
+# Author: Santhosh Siva
+# Date Created: 21-03-2026
+
+# Description:
+# This script launches the blogkit-md CLI tool.
+
+# Resolve script directory (works with symlinks for npm global install)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+	DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+exec node "$SCRIPT_DIR/blogkit-md.js" "$@"
