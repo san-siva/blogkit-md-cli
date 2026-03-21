@@ -1,7 +1,6 @@
 import { Blog, BlogHeader, Callout } from '@san-siva/blogkit';
 import { MarkdownSections } from '@san-siva/blogkit-md';
 
-import { ScrollToHash } from '@/components/ScrollToHash';
 import { readMarkdownFile } from '@/hooks/readMarkdownFile';
 
 const Page = async () => {
@@ -19,7 +18,6 @@ const Page = async () => {
 
 	return (
 		<Blog>
-			<ScrollToHash />
 			{frontmatter.title && (
 				<BlogHeader
 					title={[frontmatter.title]}

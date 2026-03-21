@@ -8,7 +8,7 @@
 	"files": [
 		"app",
 		"bin",
-		"components",
+		"hooks",
 		"utils",
 		"next.config.ts",
 		"next-env.d.ts",
