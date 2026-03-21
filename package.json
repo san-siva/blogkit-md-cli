@@ -6,15 +6,11 @@
 		"blogkit-md": "./bin/blogkit-md"
 	},
 	"files": [
-		"src",
 		"bin",
-		".next",
-		"next.config.ts",
-		"next-env.d.ts",
-		"tsconfig.json"
+		".next"
 	],
 	"scripts": {
-		"build": "next build",
+		"build": "tsup && next build",
 		"prepublishOnly": "npm ci && npm run build",
 		"lint": "eslint . --config eslint.config.ts",
 		"fix": "eslint . --config eslint.config.ts --fix"
@@ -25,11 +21,11 @@
 		"@san-siva/stylekit": "^1.0.8",
 		"next": "^16.0.10",
 		"react": "^19.0.0",
-		"react-dom": "^19.0.0",
-		"tsx": "^4.0.0"
+		"react-dom": "^19.0.0"
 	},
 	"devDependencies": {
 		"@types/node": "^22",
+		"tsup": "^8.0.0",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
 		"typescript": "^5.0.0"

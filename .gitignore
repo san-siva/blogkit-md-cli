@@ -4,6 +4,9 @@ node_modules/
 # next.js
 .next/
 
+# compiled bin
+bin/blogkit-md.js
+
 # misc
 .DS_Store
 *.pem
