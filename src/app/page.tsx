@@ -1,7 +1,9 @@
 import { Blog, BlogHeader, Callout } from '@san-siva/blogkit';
-import { MarkdownSections } from '@san-siva/blogkit-md';
+import { MarkdownSections, readMarkdownFile } from '@san-siva/blogkit-md';
 
-import { readMarkdownFile } from '@/hooks/readMarkdownFile';
+import { LiveReload } from '@/components/LiveReload';
+
+export const dynamic = 'force-dynamic';
 
 const Page = async () => {
 	const result = await readMarkdownFile(process.env.MARKDOWN_FILE);
@@ -18,6 +20,7 @@ const Page = async () => {
 
 	return (
 		<Blog>
+			<LiveReload />
 			{frontmatter.title && (
 				<BlogHeader
 					title={[frontmatter.title]}

@@ -6,21 +6,20 @@
 		"blogkit-md": "./bin/blogkit-md"
 	},
 	"files": [
-		"app",
+		"src",
 		"bin",
-		"hooks",
-		"utils",
 		"next.config.ts",
 		"next-env.d.ts",
 		"tsconfig.json"
 	],
 	"scripts": {
+		"prepublishOnly": "npm ci",
 		"lint": "eslint . --config eslint.config.ts",
 		"fix": "eslint . --config eslint.config.ts --fix"
 	},
 	"dependencies": {
 		"@san-siva/blogkit": "^1.1.20",
-		"@san-siva/blogkit-md": "^0.2.1",
+		"@san-siva/blogkit-md": "^0.2.2",
 		"@san-siva/stylekit": "^1.0.8",
 		"next": "^16.0.10",
 		"react": "^19.0.0",
