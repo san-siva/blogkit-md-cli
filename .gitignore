@@ -7,6 +7,9 @@ node_modules/
 # compiled bin
 bin/blogkit-md.js
 
+# TypeScript build cache
+tsconfig.tsbuildinfo
+
 # misc
 .DS_Store
 *.pem
