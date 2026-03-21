@@ -1,8 +1,8 @@
 import { Blog, BlogHeader, Callout } from '@san-siva/blogkit';
-import { MarkdownSections, readMarkdownFile } from '@san-siva/blogkit-md';
+import { MarkdownSections } from '@san-siva/blogkit-md';
 
-import '@/utils/devReloadTrigger';
 import { ScrollToHash } from '@/components/ScrollToHash';
+import { readMarkdownFile } from '@/hooks/readMarkdownFile';
 
 const Page = async () => {
 	const result = await readMarkdownFile(process.env.MARKDOWN_FILE);
