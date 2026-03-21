@@ -10,7 +10,7 @@
 		".next"
 	],
 	"scripts": {
-		"build": "tsup && next build",
+		"build": "rm -rf .next && tsup && next build",
 		"prepublishOnly": "npm ci && npm run build",
 		"lint": "eslint . --config eslint.config.ts",
 		"fix": "eslint . --config eslint.config.ts --fix"
