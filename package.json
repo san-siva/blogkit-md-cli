@@ -16,9 +16,9 @@
 		"fix": "eslint . --config eslint.config.ts --fix"
 	},
 	"dependencies": {
-		"@san-siva/blogkit": "^1.1.22",
-		"@san-siva/blogkit-md": "^0.2.8",
-		"@san-siva/stylekit": "^1.0.11",
+		"@san-siva/blogkit": "^1.1.23",
+		"@san-siva/blogkit-md": "^0.2.9",
+		"@san-siva/stylekit": "^1.0.12",
 		"next": "^16.0.10",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0"
