@@ -1,6 +1,6 @@
 {
 	"name": "@san-siva/blogkit-md-cli",
-	"version": "0.1.8",
+	"version": "0.1.9",
 	"description": "CLI tool to preview markdown files as blogkit-md blog posts",
 	"bin": {
 		"blogkit-md": "./bin/blogkit-md"
@@ -17,7 +17,7 @@
 	},
 	"dependencies": {
 		"@san-siva/blogkit": "^1.1.28",
-		"@san-siva/blogkit-md": "^0.3.3",
+		"@san-siva/blogkit-md": "^0.3.4",
 		"@san-siva/stylekit": "^1.0.12",
 		"next": "^16.0.10",
 		"react": "^19.0.0",
