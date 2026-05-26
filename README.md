@@ -16,27 +16,30 @@ npm install -g @san-siva/blogkit-md-cli
 ## Usage
 
 ```bash
-blogkit-md <path-to-markdown-file> [--port=<port>]
+blogkit-md <path-to-markdown-file-or-directory> [--port=<port>]
 ```
 
 ### Arguments
 
-| Argument                  | Description                                                   |
-| ------------------------- | ------------------------------------------------------------- |
-| `<path-to-markdown-file>` | Path to the markdown file to preview                          |
-| `--port=<port>`           | Port to run the preview server on (default: random free port) |
+| Argument        | Description                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `<path>`        | Path to a markdown file, or a directory containing markdown files (scanned recursively)    |
+| `--port=<port>` | Port to run the preview server on (default: random free port)                              |
 
 ### Examples
 
 ```bash
-# Preview a markdown file
+# Preview a single markdown file
 blogkit-md ./posts/my-post.md
+
+# Preview a directory — lists all .md files recursively; click any to render
+blogkit-md ./posts
 
 # Preview on a specific port
 blogkit-md ./posts/my-post.md --port=3001
 ```
 
-The browser will open automatically once the server is ready. The preview reloads whenever you save changes to the markdown file.
+The browser will open automatically once the server is ready. The preview reloads whenever you save changes to the markdown file (or any markdown file under the directory).
 
 ## Requirements
 
