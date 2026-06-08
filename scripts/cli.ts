@@ -92,7 +92,8 @@ export interface Instance {
 
 export const registryDir = (): string =>
 	process.env.BLOGKIT_MD_DIR || path.join(os.homedir(), '.blogkit-md');
-export const registryFile = (): string => path.join(registryDir(), 'instances.json');
+export const registryFile = (): string =>
+	path.join(registryDir(), 'instances.json');
 const logDir = (): string => path.join(registryDir(), 'logs');
 
 export const isAlive = (pid: number): boolean => {
@@ -208,16 +209,21 @@ export async function listInstancesInteractive(): Promise<void> {
 		const render = (footer?: string) => {
 			const out: string[] = [
 				'',
-				INDENT + c.bold(c.blue('blogkit-md')) + c.gray('  ·  running instances'),
+				INDENT +
+					c.bold(c.blue('blogkit-md')) +
+					c.gray('  ·  running instances'),
 				'',
 				...instances.map((inst, rowIndex) => {
 					const selected = rowIndex === index;
 					const pointer = selected ? c.blue('❯ ') : '  ';
-					const label = selected ? instanceLabel(inst) : c.dim(instanceLabel(inst));
+					const label = selected
+						? instanceLabel(inst)
+						: c.dim(instanceLabel(inst));
 					return INDENT + pointer + label;
 				}),
 				'',
-				footer ?? c.gray(INDENT + '↑/↓ move   ⏎ open in Chrome   k stop   q quit'),
+				footer ??
+					c.gray(INDENT + '↑/↓ j/k move   ⏎ open in Chrome   x stop   q quit'),
 				'',
 			];
 			process.stdout.write('\u001B[2J\u001B[H' + out.join('\n') + '\n');
@@ -234,35 +240,38 @@ export async function listInstancesInteractive(): Promise<void> {
 			if (!key) return;
 			const target = instances[index];
 			switch (key.name) {
-				case 'up': {
+				case 'up':
+				case 'k': {
 					index = (index - 1 + instances.length) % instances.length;
 					render();
 					break;
 				}
-				case 'down': {
+				case 'down':
+				case 'j': {
 					index = (index + 1) % instances.length;
 					render();
 					break;
 				}
 				case 'return': {
 					openBrowser(`http://localhost:${target.port}`);
-					render(c.green(INDENT + `▸ Opened localhost:${target.port} in Chrome`));
-					break;
+					render(
+						c.green(INDENT + `▸ Opened localhost:${target.port} in Chrome`)
+					);
+					finish();
+					return;
 				}
-				case 'k': {
+				case 'x': {
 					killInstance(target);
-					instances = pruneRegistry();
-					if (instances.length === 0) {
-						render(c.green(INDENT + `✓ Stopped localhost:${target.port}. No instances left.`));
-						finish();
-						return;
-					}
-					index = Math.min(index, instances.length - 1);
 					render(c.green(INDENT + `✓ Stopped localhost:${target.port}.`));
-					break;
+					finish();
+					return;
 				}
 				default: {
-					if (key.name === 'q' || key.name === 'escape' || (key.ctrl && key.name === 'c')) {
+					if (
+						key.name === 'q' ||
+						key.name === 'escape' ||
+						(key.ctrl && key.name === 'c')
+					) {
 						render(c.gray(INDENT + 'Bye 👋'));
 						finish();
 					}
@@ -294,7 +303,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
 	const flagNames = new Set(argv.filter(isFlag).map(a => a.split('=', 1)[0]));
 	const inputArgument = argv.find(a => !isFlag(a));
 	const portArgument = argv.find(a => a.startsWith('--port='));
-	const requestedPort = portArgument ? Number.parseInt(portArgument.split('=', 2)[1], 10) || 0 : 0;
+	const requestedPort = portArgument
+		? Number.parseInt(portArgument.split('=', 2)[1], 10) || 0
+		: 0;
 
 	return {
 		inputArg: inputArgument,
@@ -316,13 +327,25 @@ function printHelp(): void {
 	tree('blogkit-md <file-or-directory> [options]');
 	line();
 	line(c.bold('Options'));
-	tree(`${c.green('--port=<port>')}       run on a specific port (default: random free port)`);
-	tree(`${c.green('-b, --background')}    run the preview server detached in the background`);
-	tree(`${c.green('-t, --tear')}          stop the instance already serving this path, then start fresh`);
-	tree(`${c.green('-l, --list')}          interactively list & stop running instances`);
+	tree(
+		`${c.green('--port=<port>')}       run on a specific port (default: random free port)`
+	);
+	tree(
+		`${c.green('-b, --background')}    run the preview server detached in the background`
+	);
+	tree(
+		`${c.green('-t, --tear')}          stop the instance already serving this path, then start fresh`
+	);
+	tree(
+		`${c.green('-l, --list')}          interactively list & stop running instances`
+	);
 	tree(`${c.green('-h, --help')}          show this help`);
 	line();
-	line(c.gray('If a path is already being served, running it again just reopens it.'));
+	line(
+		c.gray(
+			'If a path is already being served, running it again just reopens it.'
+		)
+	);
 	line();
 }
 
@@ -373,7 +396,7 @@ export async function run(argv: string[]): Promise<void> {
 				line(c.yellow('▸ Tearing down the running instance'));
 				tree(
 					`${c.green('localhost:' + existing.port)}  ${c.gray('pid ' + existing.pid)}  ` +
-						`${existing.background ? c.magenta('background') : c.gray('foreground')}`,
+						`${existing.background ? c.magenta('background') : c.gray('foreground')}`
 				);
 				killInstance(existing);
 				line(c.green(`✓ Stopped localhost:${existing.port}`));
@@ -387,7 +410,12 @@ export async function run(argv: string[]): Promise<void> {
 				tree(`${c.bold('URL')}   ${c.blue(url)}`);
 				tree(`${c.bold('Path')}  ${c.dim(tilde(existing.dir))}`);
 				line();
-				line(c.gray('Restart it with ') + c.blue('--tear') + c.gray(', or list with ') + c.blue('--list'));
+				line(
+					c.gray('Restart it with ') +
+						c.blue('--tear') +
+						c.gray(', or list with ') +
+						c.blue('--list')
+				);
 				line();
 				openBrowser(url);
 				process.exit(0);
@@ -409,7 +437,7 @@ export async function run(argv: string[]): Promise<void> {
 			const child = spawn(
 				process.execPath,
 				[scriptPath, inputPath, `--port=${port}`, '--__detached'],
-				{ detached: true, stdio: ['ignore', out, out] },
+				{ detached: true, stdio: ['ignore', out, out] }
 			);
 			child.unref();
 
@@ -454,7 +482,7 @@ async function startServer(
 	inputPath: string,
 	isDirectory: boolean,
 	parsed: ParsedArgs,
-	paths: { nextBin: string; packageRoot: string },
+	paths: { nextBin: string; packageRoot: string }
 ): Promise<void> {
 	const clients = new Set<ServerResponse>();
 
@@ -462,7 +490,7 @@ async function startServer(
 		res.writeHead(200, {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
-			'Connection': 'keep-alive',
+			Connection: 'keep-alive',
 			'Access-Control-Allow-Origin': '*',
 		});
 		res.write('data: connected\n\n');
@@ -476,7 +504,9 @@ async function startServer(
 
 	const nextEnvironment = {
 		...process.env,
-		...(isDirectory ? { MARKDOWN_DIR: inputPath } : { MARKDOWN_FILE: inputPath }),
+		...(isDirectory
+			? { MARKDOWN_DIR: inputPath }
+			: { MARKDOWN_FILE: inputPath }),
 		SSE_PORT: String(ssePort),
 	};
 
@@ -509,7 +539,11 @@ async function startServer(
 
 	if (!parsed.isDetachedChild) {
 		banner();
-		line(c.gray('starting preview server for ') + c.blue(tilde(inputPath)) + c.gray(' …'));
+		line(
+			c.gray('starting preview server for ') +
+				c.blue(tilde(inputPath)) +
+				c.gray(' …')
+		);
 	}
 
 	const child = spawn(paths.nextBin, ['start', '--port', String(nextPort)], {
