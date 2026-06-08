@@ -391,7 +391,7 @@ export async function run(argv: string[]): Promise<void> {
 		if (existing) {
 			if (parsed.wantTear) {
 				banner();
-				line(c.yellow('▸ Tearing down the running instance'));
+				line(c.yellow('Tearing down the running instance'));
 				tree(
 					`${c.green('localhost:' + existing.port)}  ${c.gray('pid ' + existing.pid)}  ` +
 						`${existing.background ? c.magenta('background') : c.gray('foreground')}`
@@ -404,7 +404,7 @@ export async function run(argv: string[]): Promise<void> {
 			} else {
 				const url = `http://localhost:${existing.port}`;
 				banner();
-				line(c.green('▸ Already running — opening it in the browser'));
+				line(c.green('Already running — opening it in the browser'));
 				tree(`${c.bold('URL')}   ${c.blue(url)}`);
 				tree(`${c.bold('Path')}  ${c.dim(tilde(existing.dir))}`);
 				line();
@@ -440,7 +440,7 @@ export async function run(argv: string[]): Promise<void> {
 			child.unref();
 
 			banner();
-			line(c.green('▸ Started in the background'));
+			line(c.green('Started in the background'));
 			tree(`${c.bold('URL')}   ${c.blue('http://localhost:' + port)}`);
 			tree(`${c.bold('Path')}  ${c.dim(tilde(inputPath))}`);
 			tree(`${c.bold('PID')}   ${c.dim(String(child.pid))}`);
