@@ -73,8 +73,10 @@ and select an instance to stop it:
 
  ❯ localhost:3001  📁 ~/posts  pid 12345 · 4m bg
 
-   ↑/↓ move   ⏎ stop selected   q quit
+   ↑/↓ move   ⏎ open in Chrome   k stop   q quit
 ```
+
+`⏎` opens the selected instance in Chrome; `k` stops it.
 
 ## Requirements
 

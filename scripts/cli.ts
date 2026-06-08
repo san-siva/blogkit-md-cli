@@ -68,7 +68,8 @@ function openBrowser(url: string): void {
 	// BLOGKIT_MD_NO_OPEN lets tests (and headless envs) skip launching a browser.
 	if (process.env.BLOGKIT_MD_NO_OPEN) return;
 	try {
-		exec(`open ${url}`);
+		// Prefer Chrome; fall back to the default browser if it isn't installed.
+		exec(`open -a "Google Chrome" ${url} || open ${url}`);
 	} catch {
 		/* opening the browser is best-effort */
 	}
@@ -173,7 +174,7 @@ function printPlainList(instances: Instance[]): void {
 	line();
 }
 
-/** Interactive list of running instances; arrow keys to move, enter to kill. */
+/** Interactive list of running instances; ↑/↓ move, ⏎ opens in Chrome, k stops. */
 export async function listInstancesInteractive(): Promise<void> {
 	let instances = pruneRegistry();
 
@@ -216,7 +217,7 @@ export async function listInstancesInteractive(): Promise<void> {
 					return INDENT + pointer + label;
 				}),
 				'',
-				footer ?? c.gray(INDENT + '↑/↓ move   ⏎ stop selected   q quit'),
+				footer ?? c.gray(INDENT + '↑/↓ move   ⏎ open in Chrome   k stop   q quit'),
 				'',
 			];
 			process.stdout.write('\u001B[2J\u001B[H' + out.join('\n') + '\n');
@@ -231,44 +232,41 @@ export async function listInstancesInteractive(): Promise<void> {
 
 		const onKey = (_string: string, key: readline.Key) => {
 			if (!key) return;
+			const target = instances[index];
 			switch (key.name) {
-			case 'up': 
-			case 'k': {
-				index = (index - 1 + instances.length) % instances.length;
-				render();
-			
-			break;
-			}
-			case 'down': 
-			case 'j': {
-				index = (index + 1) % instances.length;
-				render();
-			
-			break;
-			}
-			case 'return': {
-				const target = instances[index];
-				killInstance(target);
-				instances = pruneRegistry();
-				if (instances.length === 0) {
-					render(c.green(INDENT + `✓ Stopped localhost:${target.port}. No instances left.`));
-					finish();
-					return;
+				case 'up': {
+					index = (index - 1 + instances.length) % instances.length;
+					render();
+					break;
 				}
-				index = Math.min(index, instances.length - 1);
-				render(c.green(INDENT + `✓ Stopped localhost:${target.port}.`));
-			
-			break;
-			}
-			default: { if (
-				key.name === 'q' ||
-				key.name === 'escape' ||
-				(key.ctrl && key.name === 'c')
-			) {
-				render(c.gray(INDENT + 'Bye 👋'));
-				finish();
-			}
-			}
+				case 'down': {
+					index = (index + 1) % instances.length;
+					render();
+					break;
+				}
+				case 'return': {
+					openBrowser(`http://localhost:${target.port}`);
+					render(c.green(INDENT + `▸ Opened localhost:${target.port} in Chrome`));
+					break;
+				}
+				case 'k': {
+					killInstance(target);
+					instances = pruneRegistry();
+					if (instances.length === 0) {
+						render(c.green(INDENT + `✓ Stopped localhost:${target.port}. No instances left.`));
+						finish();
+						return;
+					}
+					index = Math.min(index, instances.length - 1);
+					render(c.green(INDENT + `✓ Stopped localhost:${target.port}.`));
+					break;
+				}
+				default: {
+					if (key.name === 'q' || key.name === 'escape' || (key.ctrl && key.name === 'c')) {
+						render(c.gray(INDENT + 'Bye 👋'));
+						finish();
+					}
+				}
 			}
 		};
 
