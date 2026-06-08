@@ -254,15 +254,13 @@ export async function listInstancesInteractive(): Promise<void> {
 				}
 				case 'return': {
 					openBrowser(`http://localhost:${target.port}`);
-					render(
-						c.green(INDENT + `▸ Opened localhost:${target.port} in Chrome`)
-					);
+					render(c.green(INDENT + `Opened localhost:${target.port} in Chrome`));
 					finish();
 					return;
 				}
 				case 'x': {
 					killInstance(target);
-					render(c.green(INDENT + `✓ Stopped localhost:${target.port}.`));
+					render(c.green(INDENT + `Stopped localhost:${target.port}.`));
 					finish();
 					return;
 				}
@@ -272,7 +270,7 @@ export async function listInstancesInteractive(): Promise<void> {
 						key.name === 'escape' ||
 						(key.ctrl && key.name === 'c')
 					) {
-						render(c.gray(INDENT + 'Bye 👋'));
+						render(c.gray(INDENT + 'Ciao 👋'));
 						finish();
 					}
 				}
