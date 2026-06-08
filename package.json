@@ -13,7 +13,9 @@
 		"build": "rm -rf .next && tsup && next build",
 		"prepublishOnly": "npm ci && npm run build",
 		"lint": "eslint . --config eslint.config.ts",
-		"fix": "eslint . --config eslint.config.ts --fix"
+		"fix": "eslint . --config eslint.config.ts --fix",
+		"pretest": "tsup",
+		"test": "node --test scripts/cli.test.ts"
 	},
 	"dependencies": {
 		"@san-siva/blogkit": "^1.1.38",
@@ -24,11 +26,24 @@
 		"react-dom": "^19.0.0"
 	},
 	"devDependencies": {
+		"@eslint/js": "^9.39.4",
 		"@types/node": "^22",
-		"tsup": "^8.0.0",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
-		"typescript": "^5.0.0"
+		"eslint": "^9.39.4",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-import-resolver-typescript": "^4.4.5",
+		"eslint-plugin-import": "^2.32.0",
+		"eslint-plugin-jsx-a11y": "^6.10.2",
+		"eslint-plugin-no-await-in-promise": "^3.0.1",
+		"eslint-plugin-react": "^7.37.5",
+		"eslint-plugin-react-hooks": "^7.1.1",
+		"eslint-plugin-simple-import-sort": "^13.0.0",
+		"eslint-plugin-unicorn": "^65.0.0",
+		"jiti": "^2.7.0",
+		"tsup": "^8.0.0",
+		"typescript": "^5.0.0",
+		"typescript-eslint": "^8.60.1"
 	},
 	"license": "MIT",
 	"preferGlobal": true,

@@ -9,10 +9,10 @@ export const LiveReload = () => {
 	useEffect(() => {
 		let retries = 0;
 		const es = new EventSource('/api/sse');
-		es.onmessage = () => router.refresh();
-		es.onerror = () => {
+		es.addEventListener('message', () => router.refresh());
+		es.addEventListener('error', () => {
 			if (++retries >= 5) es.close();
-		};
+		});
 		return () => es.close();
 	}, [router]);
 
