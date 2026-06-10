@@ -119,6 +119,11 @@ test('parseArgs: long and short flags both resolve', () => {
 	assert.equal(parseArguments(['-l']).wantList, true);
 	assert.equal(parseArguments(['--help']).wantHelp, true);
 	assert.equal(parseArguments(['-h']).wantHelp, true);
+	assert.equal(parseArguments(['--no-open']).wantNoOpen, true);
+	assert.equal(parseArguments(['-n']).wantNoOpen, true);
+	assert.equal(parseArguments(['--stop']).wantStop, true);
+	assert.equal(parseArguments(['-s']).wantStop, true);
+	assert.equal(parseArguments(['--non-interactive']).wantNonInteractive, true);
 });
 
 test('parseArgs: --list-instances is still accepted (legacy alias)', () => {
@@ -255,6 +260,23 @@ test('cli --list: shows a registered instance', async () => {
 	assert.match(r.stdout, /localhost:6001/);
 });
 
+test('cli --list --non-interactive: prints a bare port+path list, no banner', async () => {
+	writeRegistry([
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts', port: 6001 }),
+		sampleInstance({ pid: process.pid, dir: '/tmp/notes', port: 6002 }),
+	]);
+	const r = await runCli(['--list', '--non-interactive']);
+	assert.equal(r.code, 0);
+	assert.equal(r.stdout, '6001\t/tmp/posts\n6002\t/tmp/notes\n');
+	assert.doesNotMatch(r.stdout, /blogkit-md|Running instances/);
+});
+
+test('cli --list --non-interactive: empty registry prints nothing', async () => {
+	const r = await runCli(['--list', '--non-interactive']);
+	assert.equal(r.code, 0);
+	assert.equal(r.stdout, '');
+});
+
 test('cli on a missing path: errors and exits 1', async () => {
 	const r = await runCli([path.join(tmpDir, 'does-not-exist')]);
 	assert.equal(r.code, 1);
@@ -282,4 +304,33 @@ test('cli default: reopens an already-served path without starting a new server'
 
 	standIn.kill('SIGKILL');
 	await waitForExit(pid);
+});
+
+test('cli --stop: kills the instance serving a path and drops it from the registry', async () => {
+	const standIn = spawnStandIn();
+	const pid = standIn.pid!;
+	const served = path.join(tmpDir, 'stop-me');
+	mkdirSync(served, { recursive: true });
+	writeFileSync(path.join(served, 'post.md'), '# hi\n');
+
+	writeRegistry([sampleInstance({ pid, dir: served, port: 6790, isDirectory: true })]);
+
+	const r = await runCli(['--stop', served]);
+	assert.equal(r.code, 0);
+	assert.match(r.stdout, /Stopped localhost:6790/);
+
+	assert.ok(await waitForExit(pid), 'the served process should have been killed');
+	assert.equal(JSON.parse(readFileSync(registryFile(), 'utf8')).length, 0);
+});
+
+test('cli --stop: reports when nothing is serving the path', async () => {
+	const r = await runCli(['--stop', path.join(tmpDir, 'never-served')]);
+	assert.equal(r.code, 0);
+	assert.match(r.stdout, /No running instance/);
+});
+
+test('cli --stop: errors without a path', async () => {
+	const r = await runCli(['--stop']);
+	assert.equal(r.code, 1);
+	assert.match(r.stdout, /--stop needs a path/);
 });

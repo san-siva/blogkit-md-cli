@@ -64,9 +64,10 @@ export function humanAge(iso: string): string {
 	return `${Math.floor(secs / 86400)}d`;
 }
 
-function openBrowser(url: string): void {
-	// BLOGKIT_MD_NO_OPEN lets tests (and headless envs) skip launching a browser.
-	if (process.env.BLOGKIT_MD_NO_OPEN) return;
+function openBrowser(url: string, skip = false): void {
+	// --no-open (skip) and BLOGKIT_MD_NO_OPEN both suppress launching a browser;
+	// the env var keeps tests and headless envs quiet.
+	if (skip || process.env.BLOGKIT_MD_NO_OPEN) return;
 	try {
 		// Prefer Chrome; fall back to the default browser if it isn't installed.
 		exec(`open -a "Google Chrome" ${url} || open ${url}`);
@@ -175,9 +176,25 @@ function printPlainList(instances: Instance[]): void {
 	line();
 }
 
+/** Machine-readable listing: one `<port>\t<dir>` per line, no banner or color. */
+function printScriptList(instances: Instance[]): void {
+	for (const inst of instances) {
+		process.stdout.write(`${inst.port}\t${inst.dir}\n`);
+	}
+}
+
 /** Interactive list of running instances; ↑/↓ move, ⏎ opens in Chrome, k stops. */
-export async function listInstancesInteractive(): Promise<void> {
+export async function listInstancesInteractive(
+	nonInteractive = false
+): Promise<void> {
 	let instances = pruneRegistry();
+
+	// --non-interactive: emit a bare port+path list (empty output if none) and
+	// bail before any banners, colors, or raw-mode key handling.
+	if (nonInteractive) {
+		printScriptList(instances);
+		return;
+	}
 
 	if (instances.length === 0) {
 		banner();
@@ -292,6 +309,9 @@ export interface ParsedArgs {
 	wantBackground: boolean;
 	wantList: boolean;
 	wantTear: boolean;
+	wantNoOpen: boolean;
+	wantStop: boolean;
+	wantNonInteractive: boolean;
 	isDetachedChild: boolean;
 	wantHelp: boolean;
 }
@@ -314,6 +334,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
 			flagNames.has('-l') ||
 			flagNames.has('--list-instances'), // legacy alias
 		wantTear: flagNames.has('--tear') || flagNames.has('-t'),
+		wantNoOpen: flagNames.has('--no-open') || flagNames.has('-n'),
+		wantStop: flagNames.has('--stop') || flagNames.has('-s'),
+		wantNonInteractive: flagNames.has('--non-interactive'),
 		isDetachedChild: flagNames.has('--__detached'), // internal use only
 		wantHelp: flagNames.has('--help') || flagNames.has('-h'),
 	};
@@ -336,6 +359,15 @@ function printHelp(): void {
 	);
 	tree(
 		`${c.green('-l, --list')}          interactively list & stop running instances`
+	);
+	tree(
+		`${c.green('--non-interactive')}   with -l, print a plain "<port>\\t<path>" list and exit`
+	);
+	tree(
+		`${c.green('-s, --stop')}          stop the instance serving the given path, then exit`
+	);
+	tree(
+		`${c.green('-n, --no-open')}       start the server without opening it in the browser`
 	);
 	tree(`${c.green('-h, --help')}          show this help`);
 	line();
@@ -360,16 +392,40 @@ export async function run(argv: string[]): Promise<void> {
 	}
 
 	if (parsed.wantList) {
-		await listInstancesInteractive();
+		await listInstancesInteractive(parsed.wantNonInteractive);
 		process.exit(0);
 	}
 
 	if (!parsed.inputArg) {
+		if (parsed.wantStop) {
+			banner();
+			line(c.red('✗ --stop needs a path'));
+			tree(c.dim('blogkit-md --stop <file-or-directory>'));
+			line();
+			process.exit(1);
+		}
 		printHelp();
 		process.exit(1);
 	}
 
 	const inputPath = path.resolve(process.cwd(), parsed.inputArg);
+
+	// --stop / -s tears down the instance serving this path and exits. It does
+	// not require the path to still exist on disk, so it runs before statSync.
+	if (parsed.wantStop) {
+		const existing = findByDir(inputPath);
+		banner();
+		if (existing) {
+			killInstance(existing);
+			line(c.green(`✓ Stopped localhost:${existing.port}`));
+			tree(c.dim(tilde(existing.dir)));
+		} else {
+			line(c.yellow('No running instance for that path'));
+			tree(c.dim(tilde(inputPath)));
+		}
+		line();
+		process.exit(0);
+	}
 
 	let inputStat;
 	try {
@@ -415,7 +471,7 @@ export async function run(argv: string[]): Promise<void> {
 						c.blue('--list')
 				);
 				line();
-				openBrowser(url);
+				openBrowser(url, parsed.wantNoOpen);
 				process.exit(0);
 			}
 		}
@@ -587,7 +643,7 @@ async function startServer(
 					line(c.gray('live reload on save  ·  Ctrl-C to stop'));
 					line();
 				}
-				openBrowser(url);
+				openBrowser(url, parsed.wantNoOpen);
 			}
 		}
 	});
