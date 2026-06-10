@@ -146,6 +146,52 @@ export function findByDir(dir: string): Instance | undefined {
 	return pruneRegistry().find(index => index.dir === dir);
 }
 
+/**
+ * Find a running directory instance that already serves `filePath`. When several
+ * nested directory instances contain the file, the deepest (most specific) wins.
+ */
+export function findContainingDir(filePath: string): Instance | undefined {
+	const contains = (dir: string): boolean => {
+		const relative = path.relative(dir, filePath);
+		return (
+			relative !== '' &&
+			!relative.startsWith('..') &&
+			!path.isAbsolute(relative)
+		);
+	};
+	return pruneRegistry()
+		.filter(index => index.isDirectory && contains(index.dir))
+		.toSorted((a, b) => b.dir.length - a.dir.length)[0];
+}
+
+/** Running instances whose served path lives strictly inside `dir`. */
+export function findInstancesUnder(dir: string): Instance[] {
+	return pruneRegistry().filter(index => {
+		const relative = path.relative(dir, index.dir);
+		return (
+			relative !== '' &&
+			!relative.startsWith('..') &&
+			!path.isAbsolute(relative)
+		);
+	});
+}
+
+/**
+ * URL path a directory instance serves `filePath` at — mirrors the href the
+ * Next.js directory index builds: strip `.md`, encode each segment, join with /.
+ */
+export function fileUrlPath(dir: string, filePath: string): string {
+	const relative = path.relative(dir, filePath);
+	return (
+		'/' +
+		relative
+			.replace(/\.md$/, '')
+			.split(path.sep)
+			.map(encodeURIComponent)
+			.join('/')
+	);
+}
+
 export function killInstance(inst: Instance): void {
 	try {
 		process.kill(inst.pid, 'SIGTERM');
@@ -376,6 +422,12 @@ function printHelp(): void {
 			'If a path is already being served, running it again just reopens it.'
 		)
 	);
+	line(
+		c.gray(
+			'A file inside a served folder reuses that server; serving a folder'
+		)
+	);
+	line(c.gray('replaces any narrower instances already running inside it.'));
 	line();
 }
 
@@ -473,6 +525,44 @@ export async function run(argv: string[]): Promise<void> {
 				line();
 				openBrowser(url, parsed.wantNoOpen);
 				process.exit(0);
+			}
+		}
+
+		// No exact match, but the file may live under a directory instance that's
+		// already running. Reuse that server's port and just open the file's URL
+		// instead of spinning up a second server for the same tree.
+		if (!isDirectory && !parsed.wantTear && inputPath.endsWith('.md')) {
+			const parent = findContainingDir(inputPath);
+			if (parent) {
+				const url = `http://localhost:${parent.port}${fileUrlPath(parent.dir, inputPath)}`;
+				banner();
+				line(c.green('Already serving this folder — opening the file'));
+				tree(`${c.bold('URL')}    ${c.blue(url)}`);
+				tree(`${c.bold('File')}   ${c.dim(tilde(inputPath))}`);
+				tree(`${c.bold('Folder')} ${c.dim(tilde(parent.dir))}`);
+				line();
+				openBrowser(url, parsed.wantNoOpen);
+				process.exit(0);
+			}
+		}
+
+		// Serving a whole directory supersedes any narrower instances already
+		// running inside it (e.g. a single file under this tree). Stop those
+		// first so the directory server owns the tree.
+		if (isDirectory) {
+			const contained = findInstancesUnder(inputPath);
+			if (contained.length > 0) {
+				banner();
+				line(c.yellow('Stopping narrower instances inside this folder'));
+				for (const inst of contained) {
+					killInstance(inst);
+					tree(
+						`${c.green('localhost:' + inst.port)}  ${c.dim(tilde(inst.dir))}`
+					);
+				}
+				line();
+				// Give the OS a moment to release the ports before reusing them.
+				await new Promise(r => setTimeout(r, 400));
 			}
 		}
 	}

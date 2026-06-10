@@ -7,7 +7,10 @@ import { afterEach,beforeEach, test } from 'node:test';
 
 import {
 	addInstance,
+	fileUrlPath,
 	findByDir,
+	findContainingDir,
+	findInstancesUnder,
 	humanAge,
 	type Instance,
 	isAlive,
@@ -230,6 +233,45 @@ test('killInstance: terminates the process and removes it from the registry', as
 });
 
 /* ----------------------------------------------------------------------------
+ * Unit — path containment helpers
+ * ------------------------------------------------------------------------- */
+
+test('findContainingDir: finds the directory instance serving a file', () => {
+	writeRegistry([
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts', isDirectory: true, port: 7001 }),
+	]);
+	assert.equal(findContainingDir('/tmp/posts/sub/file.md')?.port, 7001);
+	assert.equal(findContainingDir('/tmp/elsewhere/file.md'), undefined);
+});
+
+test('findContainingDir: ignores file instances and prefers the deepest folder', () => {
+	writeRegistry([
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts', isDirectory: true, port: 7001 }),
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts/blog', isDirectory: true, port: 7002 }),
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts/blog/a.md', isDirectory: false, port: 7003 }),
+	]);
+	assert.equal(findContainingDir('/tmp/posts/blog/a.md')?.port, 7002);
+});
+
+test('fileUrlPath: strips .md and URL-encodes each segment', () => {
+	assert.equal(fileUrlPath('/tmp/posts', '/tmp/posts/sub/my file.md'), '/sub/my%20file');
+	assert.equal(fileUrlPath('/tmp/posts', '/tmp/posts/index.md'), '/index');
+});
+
+test('findInstancesUnder: returns only instances strictly inside the folder', () => {
+	writeRegistry([
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts', isDirectory: true, port: 8000 }),
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts/a.md', isDirectory: false, port: 8001 }),
+		sampleInstance({ pid: process.pid, dir: '/tmp/posts/sub/b.md', isDirectory: false, port: 8002 }),
+		sampleInstance({ pid: process.pid, dir: '/tmp/other/c.md', isDirectory: false, port: 8003 }),
+	]);
+	const ports = findInstancesUnder('/tmp/posts')
+		.map(index => index.port)
+		.toSorted((a, b) => a - b);
+	assert.deepEqual(ports, [8001, 8002]);
+});
+
+/* ----------------------------------------------------------------------------
  * CLI smoke tests (subprocess against the built bin)
  * ------------------------------------------------------------------------- */
 
@@ -296,6 +338,30 @@ test('cli default: reopens an already-served path without starting a new server'
 	assert.equal(r.code, 0);
 	assert.match(r.stdout, /Already running/);
 	assert.match(r.stdout, /localhost:6789/);
+
+	// It must NOT have started a new instance — registry is unchanged.
+	const reg = JSON.parse(readFileSync(registryFile(), 'utf8'));
+	assert.equal(reg.length, 1);
+	assert.equal(reg[0].pid, pid);
+
+	standIn.kill('SIGKILL');
+	await waitForExit(pid);
+});
+
+test('cli: a file under an already-served folder reuses its port', async () => {
+	const standIn = spawnStandIn();
+	const pid = standIn.pid!;
+	const served = path.join(tmpDir, 'served');
+	mkdirSync(path.join(served, 'sub'), { recursive: true });
+	const file = path.join(served, 'sub', 'post.md');
+	writeFileSync(file, '# hi\n');
+
+	writeRegistry([sampleInstance({ pid, dir: served, port: 6789, isDirectory: true })]);
+
+	const r = await runCli([file]);
+	assert.equal(r.code, 0);
+	assert.match(r.stdout, /Already serving this folder/);
+	assert.match(r.stdout, /localhost:6789\/sub\/post/);
 
 	// It must NOT have started a new instance — registry is unchanged.
 	const reg = JSON.parse(readFileSync(registryFile(), 'utf8'));
