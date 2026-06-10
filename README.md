@@ -27,16 +27,29 @@ blogkit-md <path-to-markdown-file-or-directory> [options]
 
 ### Options
 
-| Option                 | Description                                                                              |
-| ---------------------- | ---------------------------------------------------------------------------------------- |
-| `--port=<port>`        | Port to run the preview server on (default: random free port)                            |
-| `-b`, `--background`   | Run the preview server detached in the background                                        |
-| `-r`, `--reuse`        | If this path is already being served, just open it in the browser instead of starting    |
-| `-l`, `--list`         | Interactively list running instances and stop any of them                                |
-| `-h`, `--help`         | Show help                                                                                |
+| Option               | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| `--port=<port>`      | Port to run the preview server on (default: random free port)     |
+| `-b`, `--background` | Run the preview server detached in the background                 |
+| `-t`, `--tear`       | Stop the instance already serving this path, then start fresh     |
+| `-s`, `--stop`       | Stop the instance serving the given path, then exit               |
+| `-l`, `--list`       | Interactively list running instances and stop any of them         |
+| `--non-interactive`  | With `-l`, print a plain `<port>\t<path>` list and exit            |
+| `-n`, `--no-open`    | Start the server without opening it in the browser                |
+| `-h`, `--help`       | Show help                                                         |
 
-If you try to preview a path that already has a running instance, you'll be
-prompted to stop the existing one (or pass `--reuse` to just open it).
+### Reusing running instances
+
+The CLI avoids spinning up redundant servers for the same markdown tree:
+
+- **Path already served** — running it again just reopens it in the browser.
+  Pass `--tear` to stop the running instance and start fresh instead.
+- **File inside a served folder** — if a directory is already being served and
+  you open a markdown file under it, the existing server's port is reused and
+  the file's URL opens directly (no second server).
+- **Folder over narrower instances** — serving a whole directory stops any
+  narrower instances (e.g. a single file) already running inside it, so the
+  directory server owns the tree.
 
 ### Examples
 
@@ -53,14 +66,23 @@ blogkit-md ./posts/my-post.md --port=3001
 # Run detached in the background
 blogkit-md ./posts --background
 
-# Re-open a path that's already being served
-blogkit-md ./posts --reuse
+# Start the server without opening the browser
+blogkit-md ./posts --no-open
+
+# Restart the instance serving a path from scratch
+blogkit-md ./posts --tear
+
+# Stop the instance serving a given path
+blogkit-md ./posts --stop
 
 # List running instances and stop one interactively
 blogkit-md --list
+
+# Print a plain "<port>\t<path>" list for scripting
+blogkit-md --list --non-interactive
 ```
 
-The browser will open automatically once the server is ready. The preview reloads whenever you save changes to the markdown file (or any markdown file under the directory).
+The browser will open automatically once the server is ready (unless you pass `--no-open`). The preview reloads whenever you save changes to the markdown file (or any markdown file under the directory).
 
 ### Managing background instances
 
@@ -73,10 +95,10 @@ and select an instance to stop it:
 
  ❯ localhost:3001  📁 ~/posts  pid 12345 · 4m bg
 
-   ↑/↓ move   ⏎ open in Chrome   k stop   q quit
+   ↑/↓ j/k move   ⏎ open in Chrome   x stop   q quit
 ```
 
-`⏎` opens the selected instance in Chrome; `k` stops it.
+`⏎` opens the selected instance in Chrome; `x` stops it. For scripting, `blogkit-md --list --non-interactive` prints one `<port>\t<path>` line per instance with no banner or colors.
 
 ## Requirements
 
