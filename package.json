@@ -15,7 +15,7 @@
 		"lint": "eslint . --config eslint.config.ts",
 		"fix": "eslint . --config eslint.config.ts --fix",
 		"pretest": "tsup",
-		"test": "node --test scripts/cli.test.ts"
+		"test": "node --test 'scripts/tests/*.test.ts'"
 	},
 	"dependencies": {
 		"@san-siva/blogkit": "^1.1.38",

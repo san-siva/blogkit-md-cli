@@ -23,7 +23,7 @@ const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 const paint = (code: string) => (s: string) =>
 	useColor ? `\u001B[${code}m${s}\u001B[0m` : s;
 
-const c = {
+export const c = {
 	bold: paint('1'),
 	dim: paint('2'),
 	red: paint('31'),
@@ -36,11 +36,11 @@ const c = {
 };
 
 const INDENT = ' '.repeat(3);
-const line = (s = '') => console.log(INDENT + s);
-const tree = (s = '') => console.log(c.gray(INDENT + '│ ') + s);
+export const line = (s = '') => console.log(INDENT + s);
+export const tree = (s = '') => console.log(c.gray(INDENT + '│ ') + s);
 
 let bannerShown = false;
-function banner(): void {
+export function banner(): void {
 	if (bannerShown) return;
 	bannerShown = true;
 	line();
@@ -64,13 +64,22 @@ export function humanAge(iso: string): string {
 	return `${Math.floor(secs / 86400)}d`;
 }
 
-function openBrowser(url: string, skip = false): void {
+function openBrowser(url: string, skip = false, forceNewTab = false): void {
 	// --no-open (skip) and BLOGKIT_MD_NO_OPEN both suppress launching a browser;
 	// the env var keeps tests and headless envs quiet.
 	if (skip || process.env.BLOGKIT_MD_NO_OPEN) return;
 	try {
-		// Prefer Chrome; fall back to the default browser if it isn't installed.
-		exec(`open -a "Google Chrome" ${url} || open ${url}`);
+		if (forceNewTab) {
+			// When reusing a superseded port Chrome may already have that URL open
+			// in a stale tab. osascript "open location" always opens a new tab so
+			// the fresh content loads at a clean URL (no cache-busting params).
+			exec(
+				`osascript -e 'tell app "Google Chrome" to open location "${url}"' 2>/dev/null` +
+					` || open -a "Google Chrome" "${url}" || open "${url}"`
+			);
+		} else {
+			exec(`open -a "Google Chrome" "${url}" || open "${url}"`);
+		}
 	} catch {
 		/* opening the browser is best-effort */
 	}
@@ -147,32 +156,35 @@ export function findByDir(dir: string): Instance | undefined {
 }
 
 /**
+ * True when `child` lives strictly inside `parent`. Checks `..` as a whole
+ * path segment — a bare startsWith('..') would wrongly reject children whose
+ * own name begins with dots (e.g. `parent/..drafts/a.md` → relative
+ * `..drafts/a.md`). The absolute check catches cross-drive paths on Windows.
+ */
+const isInside = (parent: string, child: string): boolean => {
+	const relative = path.relative(parent, child);
+	return (
+		relative !== '' &&
+		relative !== '..' &&
+		!relative.startsWith('..' + path.sep) &&
+		!path.isAbsolute(relative)
+	);
+};
+
+/**
  * Find a running directory instance that already serves `filePath`. When several
- * nested directory instances contain the file, the deepest (most specific) wins.
+ * nested directory instances contain the file they all lie on the same ancestor
+ * chain, so the longest dir string is the deepest (most specific) and wins.
  */
 export function findContainingDir(filePath: string): Instance | undefined {
-	const contains = (dir: string): boolean => {
-		const relative = path.relative(dir, filePath);
-		return (
-			relative !== '' &&
-			!relative.startsWith('..') &&
-			!path.isAbsolute(relative)
-		);
-	};
 	return pruneRegistry()
-		.filter(index => index.isDirectory && contains(index.dir))
+		.filter(index => index.isDirectory && isInside(index.dir, filePath))
 		.toSorted((a, b) => b.dir.length - a.dir.length)[0];
 }
 
 /** Running instances whose served path lives strictly inside `dir`. */
 export function findInstancesUnder(dir: string): Instance[] {
-	return pruneRegistry().filter(index => {
-		const relative = path.relative(dir, index.dir);
-		if (relative === '') return false; // the directory itself
-		if (relative.startsWith('..')) return false; // sibling or ancestor
-		if (path.isAbsolute(relative)) return false; // no shared base (cross-drive)
-		return true; // strictly inside
-	});
+	return pruneRegistry().filter(index => isInside(dir, index.dir));
 }
 
 /**
@@ -355,11 +367,25 @@ export interface ParsedArgs {
 	wantTear: boolean;
 	wantNoOpen: boolean;
 	wantStop: boolean;
+	wantStopAll: boolean;
 	wantNonInteractive: boolean;
 	isDetachedChild: boolean;
 	isPortReused: boolean;
 	wantHelp: boolean;
+	unknownFlags: string[];
 }
+
+const KNOWN_FLAGS = new Set([
+	'--port',
+	'--tear', '-t',
+	'--list', '-l', '--list-instances',
+	'--no-open', '-n',
+	'--stop', '-s',
+	'--stop-all', '-S',
+	'--non-interactive',
+	'--help', '-h',
+	'--__detached', '--__port-reused', // internal
+]);
 
 export function parseArgs(argv: string[]): ParsedArgs {
 	const isFlag = (a: string) => a.startsWith('-');
@@ -380,10 +406,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
 		wantTear: flagNames.has('--tear') || flagNames.has('-t'),
 		wantNoOpen: flagNames.has('--no-open') || flagNames.has('-n'),
 		wantStop: flagNames.has('--stop') || flagNames.has('-s'),
+		wantStopAll: flagNames.has('--stop-all') || flagNames.has('-S'),
 		wantNonInteractive: flagNames.has('--non-interactive'),
 		isDetachedChild: flagNames.has('--__detached'), // internal use only
 		isPortReused: flagNames.has('--__port-reused'), // internal use only
 		wantHelp: flagNames.has('--help') || flagNames.has('-h'),
+		unknownFlags: [...flagNames].filter(f => !KNOWN_FLAGS.has(f)),
 	};
 }
 
@@ -408,6 +436,7 @@ function printHelp(): void {
 	tree(
 		`${c.green('-s, --stop')}          stop the instance serving the given path, then exit`
 	);
+	tree(`${c.green('-S, --stop-all')}      stop all running instances, then exit`);
 	tree(
 		`${c.green('-n, --no-open')}       start the server without opening it in the browser`
 	);
@@ -433,21 +462,8 @@ function printHelp(): void {
 	line();
 }
 
-/** Stop the instance serving `inputPath`, report the outcome, and exit. (--stop) */
-function stopAndExit(inputPath: string): never {
-	banner();
-	const existing = findByDir(inputPath);
-	if (existing) {
-		killInstance(existing);
-		line(c.green(`✓ Stopped localhost:${existing.port}`));
-		tree(c.dim(tilde(existing.dir)));
-	} else {
-		line(c.yellow('No running instance for that path'));
-		tree(c.dim(tilde(inputPath)));
-	}
-	line();
-	process.exit(0);
-}
+import { stopAllAndExit, stopAndExit } from './cli/stop.ts';
+export { stopAllAndExit, stopAndExit };
 
 /** Stat the input path, returning whether it's a directory; exits if it's missing. */
 function statInput(inputPath: string): boolean {
@@ -643,10 +659,22 @@ async function launchInBackground(
 export async function run(argv: string[]): Promise<void> {
 	const parsed = parseArgs(argv);
 
+	if (parsed.unknownFlags.length > 0) {
+		banner();
+		for (const flag of parsed.unknownFlags) {
+			line(c.red(`✗ Unknown flag: ${flag}`));
+		}
+		line();
+		printHelp();
+		process.exit(1);
+	}
+
 	if (parsed.wantHelp) {
 		printHelp();
 		process.exit(0);
 	}
+
+	if (parsed.wantStopAll) stopAllAndExit();
 
 	if (parsed.wantList) {
 		await listInstancesInteractive(parsed.wantNonInteractive);
@@ -796,13 +824,8 @@ async function startServer(
 			const match = chunk.toString().match(/http:\/\/localhost:\d+/);
 			if (match) {
 				ready = true;
-				// When reusing a port from a superseded instance, Chrome may already
-				// have that URL open in a tab and focus it without refreshing. A unique
-				// query param forces it to treat this as a new navigation.
-				const url = parsed.isPortReused
-					? `http://localhost:${nextPort}/?_=${Date.now()}`
-					: `http://localhost:${nextPort}`;
-				openBrowser(url, parsed.wantNoOpen);
+				const url = `http://localhost:${nextPort}`;
+				openBrowser(url, parsed.wantNoOpen, parsed.isPortReused);
 			}
 		}
 	});
