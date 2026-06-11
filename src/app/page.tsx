@@ -1,44 +1,23 @@
+import { cache } from 'react';
+
 import { readMarkdownFile } from '@san-siva/blogkit-md';
 import type { Metadata } from 'next';
-import { readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { cache } from 'react';
 
 import { RenderDirectory } from '@/components/RenderDirectory';
 import { RenderFile } from '@/components/RenderFile';
+import { collectMarkdownLinks } from '@/lib/markdown-links';
 
 export const dynamic = 'force-dynamic';
 
-const getMarkdownFile = cache(() => readMarkdownFile(process.env.MARKDOWN_FILE));
+const getMarkdownFile = cache(() =>
+	readMarkdownFile(process.env.MARKDOWN_FILE)
+);
 
 const getMarkdownLinks = cache(async () => {
 	const dir = process.env.MARKDOWN_DIR;
 	if (!dir) return [];
-	const links: { href: string; label: string }[] = [];
-
-	const walk = async (current: string) => {
-		let entries;
-		try {
-			entries = await readdir(current, { withFileTypes: true });
-		} catch {
-			return;
-		}
-		for (const entry of entries) {
-			const fullPath = path.join(current, entry.name);
-			if (entry.isDirectory()) {
-				await walk(fullPath);
-			} else if (entry.name.endsWith('.md')) {
-				const relative = path.relative(dir, fullPath);
-				const href = '/' + relative.replace(/\.md$/, '').split(path.sep).map(encodeURIComponent).join('/');
-				const label = relative.replace(/\.md$/, '').split(path.sep).join(' / ');
-				links.push({ href, label });
-			}
-		}
-	};
-
-	await walk(dir);
-	links.sort((a, b) => a.label.localeCompare(b.label));
-	return links;
+	return collectMarkdownLinks(dir, dir);
 });
 
 export const generateMetadata = async (): Promise<Metadata> => {

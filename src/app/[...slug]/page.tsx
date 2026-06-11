@@ -1,49 +1,63 @@
+import { cache } from 'react';
+
 import { readMarkdownFile } from '@san-siva/blogkit-md';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import path from 'node:path';
-import { cache } from 'react';
 
+import { RenderDirectory } from '@/components/RenderDirectory';
 import { RenderFile } from '@/components/RenderFile';
+import { collectMarkdownLinks } from '@/lib/markdown-links';
+import { resolveDirectory, resolveSafePath } from '@/lib/resolve-path';
 
 export const dynamic = 'force-dynamic';
 
-type Props = {
+type Properties = {
 	params: Promise<{ slug: string[] }>;
 };
 
-const resolveMarkdownPath = (slug: string[]): string | null => {
-	const dir = process.env.MARKDOWN_DIR;
-	if (!dir) return null;
-
-	const safeSlug = slug.map(part => decodeURIComponent(part)).filter(p => p && p !== '..' && !p.includes('/') && !p.includes('\\'));
-	if (safeSlug.length !== slug.length) return null;
-
-	const filePath = path.resolve(dir, `${safeSlug.join(path.sep)}.md`);
-	const relative = path.relative(dir, filePath);
-	if (relative.startsWith('..') || path.isAbsolute(relative)) return null;
-	return filePath;
-};
-
 const loadFile = cache(async (slug: string[]) => {
-	const filePath = resolveMarkdownPath(slug);
-	if (!filePath) return null;
-	return readMarkdownFile(filePath);
+	const target = resolveSafePath(slug, process.env.MARKDOWN_DIR);
+	if (!target) return null;
+	return readMarkdownFile(`${target}.md`);
 });
 
-export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+const loadDirectory = cache((slug: string[]) =>
+	resolveDirectory(slug, process.env.MARKDOWN_DIR)
+);
+
+export const generateMetadata = async ({
+	params,
+}: Properties): Promise<Metadata> => {
 	const { slug } = await params;
 	const result = await loadFile(slug);
-	if (!result || !result.success) return {};
-	return {
-		...(result.title && { title: result.title }),
-		...(result.description && { description: result.description }),
-	};
+	if (result?.success) {
+		return {
+			...(result.title && { title: result.title }),
+			...(result.description && { description: result.description }),
+		};
+	}
+	const dirPath = await loadDirectory(slug);
+	if (dirPath) return { title: path.basename(dirPath) };
+	return {};
 };
 
-const NotePage = async ({ params }: Props) => {
+const NotePage = async ({ params }: Properties) => {
 	const { slug } = await params;
 	const result = await loadFile(slug);
+
+	// The .md file wins so directory names can't shadow existing file URLs;
+	// fall back to a scoped directory index when the slug is a folder.
+	if (!result?.success) {
+		const dirPath = await loadDirectory(slug);
+		if (dirPath) {
+			const links = await collectMarkdownLinks(
+				dirPath,
+				process.env.MARKDOWN_DIR!
+			);
+			return <RenderDirectory title={path.basename(dirPath)} links={links} />;
+		}
+	}
 
 	if (!result) notFound();
 
