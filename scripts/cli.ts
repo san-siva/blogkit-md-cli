@@ -357,6 +357,7 @@ export interface ParsedArgs {
 	wantStop: boolean;
 	wantNonInteractive: boolean;
 	isDetachedChild: boolean;
+	isPortReused: boolean;
 	wantHelp: boolean;
 }
 
@@ -381,6 +382,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 		wantStop: flagNames.has('--stop') || flagNames.has('-s'),
 		wantNonInteractive: flagNames.has('--non-interactive'),
 		isDetachedChild: flagNames.has('--__detached'), // internal use only
+		isPortReused: flagNames.has('--__port-reused'), // internal use only
 		wantHelp: flagNames.has('--help') || flagNames.has('-h'),
 	};
 }
@@ -507,8 +509,13 @@ function reuseContainingDir(
 ): void {
 	const parent = findContainingDir(inputPath);
 	if (!parent) return;
+	const subPath = path
+		.relative(parent.dir, inputPath)
+		.split(path.sep)
+		.map(encodeURIComponent)
+		.join('/');
 	const url = isDirectory
-		? `http://localhost:${parent.port}`
+		? `http://localhost:${parent.port}/${subPath}`
 		: `http://localhost:${parent.port}${fileUrlPath(parent.dir, inputPath)}`;
 	banner();
 	line(
@@ -603,6 +610,7 @@ async function launchInBackground(
 		// --no-open to it; everything else it can re-derive from the path.
 		const childArgs = [scriptPath, inputPath, `--port=${port}`, '--__detached'];
 		if (parsed.wantNoOpen) childArgs.push('--no-open');
+		if (reclaimedPort) childArgs.push('--__port-reused');
 		const child = spawn(process.execPath, childArgs, {
 			detached: true,
 			stdio: ['ignore', out, out],
@@ -788,7 +796,12 @@ async function startServer(
 			const match = chunk.toString().match(/http:\/\/localhost:\d+/);
 			if (match) {
 				ready = true;
-				const url = `http://localhost:${nextPort}`;
+				// When reusing a port from a superseded instance, Chrome may already
+				// have that URL open in a tab and focus it without refreshing. A unique
+				// query param forces it to treat this as a new navigation.
+				const url = parsed.isPortReused
+					? `http://localhost:${nextPort}/?_=${Date.now()}`
+					: `http://localhost:${nextPort}`;
 				openBrowser(url, parsed.wantNoOpen);
 			}
 		}

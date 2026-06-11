@@ -111,6 +111,7 @@ test('parseArgs: bare path is the input, no flags set', () => {
 	assert.equal(a.wantList, false);
 	assert.equal(a.wantTear, false);
 	assert.equal(a.wantHelp, false);
+	assert.equal(a.isPortReused, false);
 });
 
 test('parseArgs: long and short flags both resolve', () => {
@@ -125,6 +126,7 @@ test('parseArgs: long and short flags both resolve', () => {
 	assert.equal(parseArguments(['--stop']).wantStop, true);
 	assert.equal(parseArguments(['-s']).wantStop, true);
 	assert.equal(parseArguments(['--non-interactive']).wantNonInteractive, true);
+	assert.equal(parseArguments(['--__port-reused']).isPortReused, true);
 });
 
 test('parseArgs: --list-instances is still accepted (legacy alias)', () => {
@@ -412,7 +414,7 @@ test('cli: a sub-folder under an already-served folder reuses the parent server'
 	const r = await runCli([subDir]);
 	assert.equal(r.code, 0);
 	assert.match(r.stdout, /Already serving a parent folder/);
-	assert.match(r.stdout, /localhost:6790/);
+	assert.match(r.stdout, /localhost:6790\/sub/);
 
 	// It must NOT have started a new instance — the parent is untouched.
 	const reg = JSON.parse(readFileSync(registryFile(), 'utf8'));
