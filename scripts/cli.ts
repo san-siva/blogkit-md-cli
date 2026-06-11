@@ -168,11 +168,10 @@ export function findContainingDir(filePath: string): Instance | undefined {
 export function findInstancesUnder(dir: string): Instance[] {
 	return pruneRegistry().filter(index => {
 		const relative = path.relative(dir, index.dir);
-		return (
-			relative !== '' &&
-			!relative.startsWith('..') &&
-			!path.isAbsolute(relative)
-		);
+		if (relative === '') return false; // the directory itself
+		if (relative.startsWith('..')) return false; // sibling or ancestor
+		if (path.isAbsolute(relative)) return false; // no shared base (cross-drive)
+		return true; // strictly inside
 	});
 }
 
@@ -352,7 +351,6 @@ export async function listInstancesInteractive(
 export interface ParsedArgs {
 	inputArg?: string;
 	requestedPort: number;
-	wantBackground: boolean;
 	wantList: boolean;
 	wantTear: boolean;
 	wantNoOpen: boolean;
@@ -374,7 +372,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
 	return {
 		inputArg: inputArgument,
 		requestedPort,
-		wantBackground: flagNames.has('--background') || flagNames.has('-b'),
 		wantList:
 			flagNames.has('--list') ||
 			flagNames.has('-l') ||
@@ -396,9 +393,6 @@ function printHelp(): void {
 	line(c.bold('Options'));
 	tree(
 		`${c.green('--port=<port>')}       run on a specific port (default: random free port)`
-	);
-	tree(
-		`${c.green('-b, --background')}    run the preview server detached in the background`
 	);
 	tree(
 		`${c.green('-t, --tear')}          stop the instance already serving this path, then start fresh`
@@ -423,12 +417,215 @@ function printHelp(): void {
 		)
 	);
 	line(
-		c.gray(
-			'A file inside a served folder reuses that server; serving a folder'
-		)
+		c.gray('A file inside a served folder reuses that server; serving a folder')
 	);
 	line(c.gray('replaces any narrower instances already running inside it.'));
 	line();
+	line(
+		c.gray('The server always runs in the background; stop it with ') +
+			c.blue('--stop') +
+			c.gray(' or ') +
+			c.blue('--list') +
+			c.gray('.')
+	);
+	line();
+}
+
+/** Stop the instance serving `inputPath`, report the outcome, and exit. (--stop) */
+function stopAndExit(inputPath: string): never {
+	banner();
+	const existing = findByDir(inputPath);
+	if (existing) {
+		killInstance(existing);
+		line(c.green(`✓ Stopped localhost:${existing.port}`));
+		tree(c.dim(tilde(existing.dir)));
+	} else {
+		line(c.yellow('No running instance for that path'));
+		tree(c.dim(tilde(inputPath)));
+	}
+	line();
+	process.exit(0);
+}
+
+/** Stat the input path, returning whether it's a directory; exits if it's missing. */
+function statInput(inputPath: string): boolean {
+	try {
+		return statSync(inputPath).isDirectory();
+	} catch {
+		banner();
+		line(c.red('✗ Path does not exist'));
+		tree(c.dim(inputPath));
+		line();
+		process.exit(1);
+	}
+}
+
+/** Stop a running instance and pause briefly so the OS can release its port. */
+async function tearDownInstance(existing: Instance): Promise<void> {
+	banner();
+	line(c.yellow('Tearing down the running instance'));
+	tree(
+		`${c.green('localhost:' + existing.port)}  ${c.gray('pid ' + existing.pid)}  ` +
+			`${existing.background ? c.magenta('background') : c.gray('foreground')}`
+	);
+	killInstance(existing);
+	line(c.green(`✓ Stopped localhost:${existing.port}`));
+	line();
+	await new Promise(r => setTimeout(r, 400));
+}
+
+/** Reopen an already-running instance in the browser, then exit. */
+function reopenInstance(existing: Instance, parsed: ParsedArgs): never {
+	const url = `http://localhost:${existing.port}`;
+	banner();
+	line(c.green('Already running — opening it in the browser'));
+	tree(`${c.bold('URL')}   ${c.blue(url)}`);
+	tree(`${c.bold('Path')}  ${c.dim(tilde(existing.dir))}`);
+	line();
+	line(
+		c.gray('Restart it with ') +
+			c.blue('--tear') +
+			c.gray(', or list with ') +
+			c.blue('--list')
+	);
+	line();
+	openBrowser(url, parsed.wantNoOpen);
+	process.exit(0);
+}
+
+/**
+ * If `inputPath` — a file or a sub-folder — lives under a directory instance
+ * that's already running, open it on that server (reusing the port) and exit.
+ * For a file we jump straight to its URL; for a sub-folder we open the parent
+ * server's index, which already lists everything beneath it. Returns if no such
+ * parent instance exists.
+ */
+function reuseContainingDir(
+	inputPath: string,
+	isDirectory: boolean,
+	parsed: ParsedArgs
+): void {
+	const parent = findContainingDir(inputPath);
+	if (!parent) return;
+	const url = isDirectory
+		? `http://localhost:${parent.port}`
+		: `http://localhost:${parent.port}${fileUrlPath(parent.dir, inputPath)}`;
+	banner();
+	line(
+		c.green(
+			isDirectory
+				? 'Already serving a parent folder — opening it'
+				: 'Already serving this folder — opening the file'
+		)
+	);
+	tree(`${c.bold('URL')}     ${c.blue(url)}`);
+	tree(`${c.bold(isDirectory ? 'Folder' : 'File')}  ${c.dim(tilde(inputPath))}`);
+	tree(`${c.bold('Parent')}  ${c.dim(tilde(parent.dir))}`);
+	line();
+	openBrowser(url, parsed.wantNoOpen);
+	process.exit(0);
+}
+
+/**
+ * Stop any narrower instances running inside `dir` so the folder server owns the
+ * tree, and return one of their ports so the new server can reuse it. Returns
+ * undefined when nothing narrower was running.
+ */
+export async function supersedeNarrowerInstances(
+	dir: string
+): Promise<number | undefined> {
+	const contained = findInstancesUnder(dir);
+	if (contained.length === 0) return undefined;
+	banner();
+	line(c.yellow('Stopping narrower instances inside this folder'));
+	for (const inst of contained) {
+		killInstance(inst);
+		tree(`${c.green('localhost:' + inst.port)}  ${c.dim(tilde(inst.dir))}`);
+	}
+	const reusedPort = contained[0].port;
+	line(c.gray(`Reusing port ${reusedPort} for ${tilde(dir)}`));
+	line();
+	// Give the OS a moment to release the ports before reusing them.
+	await new Promise(r => setTimeout(r, 400));
+	return reusedPort;
+}
+
+/**
+ * Reconcile the requested path with already-running instances before launch:
+ * reopen or tear down an exact match, reuse a parent folder when opening a file
+ * inside it, or stop narrower instances when serving a whole folder. Several of
+ * these branches exit the process directly. Returns a port to reuse for the new
+ * server (from a superseded narrower instance), or undefined for a free port.
+ */
+async function reconcileInstances(
+	inputPath: string,
+	isDirectory: boolean,
+	parsed: ParsedArgs
+): Promise<number | undefined> {
+	const existing = findByDir(inputPath);
+	if (existing) {
+		if (parsed.wantTear) {
+			await tearDownInstance(existing);
+		} else {
+			reopenInstance(existing, parsed); // exits
+		}
+	}
+
+	// A file or a sub-folder living under an already-running directory instance
+	// reuses that server instead of starting another. Checked before supersede
+	// so opening a sub-folder of a served tree reuses the parent rather than
+	// spinning up (and then superseding) its own server.
+	if (!parsed.wantTear && (isDirectory || inputPath.endsWith('.md'))) {
+		reuseContainingDir(inputPath, isDirectory, parsed); // exits if a parent is found
+	}
+
+	if (isDirectory) {
+		return supersedeNarrowerInstances(inputPath);
+	}
+	return undefined;
+}
+
+/** Re-spawn ourselves detached so the preview server keeps running, then exit. */
+async function launchInBackground(
+	inputPath: string,
+	parsed: ParsedArgs,
+	scriptPath: string,
+	reclaimedPort?: number
+): Promise<never> {
+	try {
+		// Explicit --port wins; otherwise reuse a superseded instance's port.
+		const port =
+			parsed.requestedPort || reclaimedPort || (await getFreePort());
+		mkdirSync(logDir(), { recursive: true });
+		const logFile = path.join(logDir(), `${port}.log`);
+		const out = openSync(logFile, 'a');
+		// The detached child is the one that opens the browser, so forward
+		// --no-open to it; everything else it can re-derive from the path.
+		const childArgs = [scriptPath, inputPath, `--port=${port}`, '--__detached'];
+		if (parsed.wantNoOpen) childArgs.push('--no-open');
+		const child = spawn(process.execPath, childArgs, {
+			detached: true,
+			stdio: ['ignore', out, out],
+		});
+		child.unref();
+
+		banner();
+		line(c.green('Started in the background'));
+		tree(`${c.bold('URL')}   ${c.blue('http://localhost:' + port)}`);
+		tree(`${c.bold('Path')}  ${c.dim(tilde(inputPath))}`);
+		tree(`${c.bold('PID')}   ${c.dim(String(child.pid))}`);
+		tree(`${c.bold('Log')}   ${c.dim(tilde(logFile))}`);
+		line();
+		line(c.gray('Stop it with:  ') + c.blue('blogkit-md --list'));
+		line();
+	} catch (error) {
+		banner();
+		line(c.red('✗ Failed to start in the background'));
+		tree(c.dim(String(error)));
+		line();
+		process.exit(1);
+	}
+	process.exit(0);
 }
 
 /* ----------------------------------------------------------------------------
@@ -449,159 +646,34 @@ export async function run(argv: string[]): Promise<void> {
 	}
 
 	if (!parsed.inputArg) {
-		if (parsed.wantStop) {
-			banner();
-			line(c.red('✗ --stop needs a path'));
-			tree(c.dim('blogkit-md --stop <file-or-directory>'));
-			line();
-			process.exit(1);
-		}
+		line(c.red('✗ Missing path'));
 		printHelp();
 		process.exit(1);
 	}
 
 	const inputPath = path.resolve(process.cwd(), parsed.inputArg);
 
-	// --stop / -s tears down the instance serving this path and exits. It does
-	// not require the path to still exist on disk, so it runs before statSync.
-	if (parsed.wantStop) {
-		const existing = findByDir(inputPath);
-		banner();
-		if (existing) {
-			killInstance(existing);
-			line(c.green(`✓ Stopped localhost:${existing.port}`));
-			tree(c.dim(tilde(existing.dir)));
-		} else {
-			line(c.yellow('No running instance for that path'));
-			tree(c.dim(tilde(inputPath)));
-		}
-		line();
-		process.exit(0);
-	}
+	// --stop / -s runs before statInput because the path need not still exist.
+	if (parsed.wantStop) stopAndExit(inputPath);
 
-	let inputStat;
-	try {
-		inputStat = statSync(inputPath);
-	} catch {
-		banner();
-		line(c.red('✗ Path does not exist'));
-		tree(c.dim(inputPath));
-		line();
-		process.exit(1);
-	}
-	const isDirectory = inputStat.isDirectory();
+	const isDirectory = statInput(inputPath);
 
-	// If this path is already being served, the default is to just reopen it.
-	// --tear / -t instead stops the running instance and starts a fresh one.
-	// The detached child skips this — its parent already handled it.
-	if (!parsed.isDetachedChild) {
-		const existing = findByDir(inputPath);
-		if (existing) {
-			if (parsed.wantTear) {
-				banner();
-				line(c.yellow('Tearing down the running instance'));
-				tree(
-					`${c.green('localhost:' + existing.port)}  ${c.gray('pid ' + existing.pid)}  ` +
-						`${existing.background ? c.magenta('background') : c.gray('foreground')}`
-				);
-				killInstance(existing);
-				line(c.green(`✓ Stopped localhost:${existing.port}`));
-				line();
-				// Give the OS a moment to release the port before reusing it.
-				await new Promise(r => setTimeout(r, 400));
-			} else {
-				const url = `http://localhost:${existing.port}`;
-				banner();
-				line(c.green('Already running — opening it in the browser'));
-				tree(`${c.bold('URL')}   ${c.blue(url)}`);
-				tree(`${c.bold('Path')}  ${c.dim(tilde(existing.dir))}`);
-				line();
-				line(
-					c.gray('Restart it with ') +
-						c.blue('--tear') +
-						c.gray(', or list with ') +
-						c.blue('--list')
-				);
-				line();
-				openBrowser(url, parsed.wantNoOpen);
-				process.exit(0);
-			}
-		}
-
-		// No exact match, but the file may live under a directory instance that's
-		// already running. Reuse that server's port and just open the file's URL
-		// instead of spinning up a second server for the same tree.
-		if (!isDirectory && !parsed.wantTear && inputPath.endsWith('.md')) {
-			const parent = findContainingDir(inputPath);
-			if (parent) {
-				const url = `http://localhost:${parent.port}${fileUrlPath(parent.dir, inputPath)}`;
-				banner();
-				line(c.green('Already serving this folder — opening the file'));
-				tree(`${c.bold('URL')}    ${c.blue(url)}`);
-				tree(`${c.bold('File')}   ${c.dim(tilde(inputPath))}`);
-				tree(`${c.bold('Folder')} ${c.dim(tilde(parent.dir))}`);
-				line();
-				openBrowser(url, parsed.wantNoOpen);
-				process.exit(0);
-			}
-		}
-
-		// Serving a whole directory supersedes any narrower instances already
-		// running inside it (e.g. a single file under this tree). Stop those
-		// first so the directory server owns the tree.
-		if (isDirectory) {
-			const contained = findInstancesUnder(inputPath);
-			if (contained.length > 0) {
-				banner();
-				line(c.yellow('Stopping narrower instances inside this folder'));
-				for (const inst of contained) {
-					killInstance(inst);
-					tree(
-						`${c.green('localhost:' + inst.port)}  ${c.dim(tilde(inst.dir))}`
-					);
-				}
-				line();
-				// Give the OS a moment to release the ports before reusing them.
-				await new Promise(r => setTimeout(r, 400));
-			}
-		}
-	}
+	// Reconcile against running instances whether or not we're the detached
+	// child: the parent's pass is usually enough, but the child must still
+	// handle anything that changed between spawn and start (and is otherwise a
+	// harmless no-op). When serving a folder supersedes a narrower instance, its
+	// freed port is handed back so the new server can reuse it.
+	const reclaimedPort = await reconcileInstances(inputPath, isDirectory, parsed);
 
 	const scriptPath = process.argv[1];
 	const packageRoot = path.dirname(path.dirname(scriptPath));
 	const nextBin = path.join(packageRoot, 'node_modules/.bin/next');
 
-	// Background launch: re-spawn ourselves detached, then report and exit.
-	if (parsed.wantBackground && !parsed.isDetachedChild) {
-		try {
-			const port = parsed.requestedPort || (await getFreePort());
-			mkdirSync(logDir(), { recursive: true });
-			const logFile = path.join(logDir(), `${port}.log`);
-			const out = openSync(logFile, 'a');
-			const child = spawn(
-				process.execPath,
-				[scriptPath, inputPath, `--port=${port}`, '--__detached'],
-				{ detached: true, stdio: ['ignore', out, out] }
-			);
-			child.unref();
-
-			banner();
-			line(c.green('Started in the background'));
-			tree(`${c.bold('URL')}   ${c.blue('http://localhost:' + port)}`);
-			tree(`${c.bold('Path')}  ${c.dim(tilde(inputPath))}`);
-			tree(`${c.bold('PID')}   ${c.dim(String(child.pid))}`);
-			tree(`${c.bold('Log')}   ${c.dim(tilde(logFile))}`);
-			line();
-			line(c.gray('Stop it with:  ') + c.blue('blogkit-md --list'));
-			line();
-		} catch (error) {
-			banner();
-			line(c.red('✗ Failed to start in the background'));
-			tree(c.dim(String(error)));
-			line();
-			process.exit(1);
-		}
-		process.exit(0);
+	// The server always runs detached in the background. The first invocation
+	// re-spawns itself with --__detached and exits; that detached child is the
+	// one that actually starts the server.
+	if (!parsed.isDetachedChild) {
+		await launchInBackground(inputPath, parsed, scriptPath, reclaimedPort);
 	}
 
 	await startServer(inputPath, isDirectory, parsed, { nextBin, packageRoot });
@@ -669,26 +741,19 @@ async function startServer(
 		});
 	}
 
-	// Register this instance and make sure we clean up on the way out.
+	// Register this instance and make sure we clean up on the way out. The
+	// server only ever runs as the detached background child, so it's always
+	// recorded as a background instance.
 	const me: Instance = {
 		pid: process.pid,
 		port: nextPort,
 		ssePort,
 		dir: inputPath,
 		isDirectory,
-		background: parsed.isDetachedChild,
+		background: true,
 		startedAt: new Date().toISOString(),
 	};
 	addInstance(me);
-
-	if (!parsed.isDetachedChild) {
-		banner();
-		line(
-			c.gray('starting preview server for ') +
-				c.blue(tilde(inputPath)) +
-				c.gray(' …')
-		);
-	}
 
 	const child = spawn(paths.nextBin, ['start', '--port', String(nextPort)], {
 		cwd: paths.packageRoot,
@@ -724,15 +789,6 @@ async function startServer(
 			if (match) {
 				ready = true;
 				const url = `http://localhost:${nextPort}`;
-				if (!parsed.isDetachedChild) {
-					line();
-					line(c.green('✓ Ready'));
-					tree(`${c.bold('URL')}   ${c.blue(url)}`);
-					tree(`${c.bold('Path')}  ${c.dim(tilde(inputPath))}`);
-					line();
-					line(c.gray('live reload on save  ·  Ctrl-C to stop'));
-					line();
-				}
 				openBrowser(url, parsed.wantNoOpen);
 			}
 		}

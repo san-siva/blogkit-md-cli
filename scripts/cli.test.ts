@@ -20,6 +20,7 @@ import {
 	readRegistry,
 	registryFile,
 	removeInstance,
+	supersedeNarrowerInstances,
 	tilde,
 	writeRegistry,
 } from './cli.ts';
@@ -107,15 +108,12 @@ test('parseArgs: bare path is the input, no flags set', () => {
 	const a = parseArguments(['./posts']);
 	assert.equal(a.inputArg, './posts');
 	assert.equal(a.requestedPort, 0);
-	assert.equal(a.wantBackground, false);
 	assert.equal(a.wantList, false);
 	assert.equal(a.wantTear, false);
 	assert.equal(a.wantHelp, false);
 });
 
 test('parseArgs: long and short flags both resolve', () => {
-	assert.equal(parseArguments(['--background']).wantBackground, true);
-	assert.equal(parseArguments(['-b']).wantBackground, true);
 	assert.equal(parseArguments(['--tear']).wantTear, true);
 	assert.equal(parseArguments(['-t']).wantTear, true);
 	assert.equal(parseArguments(['--list']).wantList, true);
@@ -145,9 +143,9 @@ test('parseArgs: --port is parsed; junk falls back to 0', () => {
 });
 
 test('parseArgs: flags and path combine in any order', () => {
-	const a = parseArguments(['-b', './posts', '--port=4000', '-t']);
+	const a = parseArguments(['-n', './posts', '--port=4000', '-t']);
 	assert.equal(a.inputArg, './posts');
-	assert.equal(a.wantBackground, true);
+	assert.equal(a.wantNoOpen, true);
 	assert.equal(a.wantTear, true);
 	assert.equal(a.requestedPort, 4000);
 });
@@ -271,6 +269,35 @@ test('findInstancesUnder: returns only instances strictly inside the folder', ()
 	assert.deepEqual(ports, [8001, 8002]);
 });
 
+test('supersedeNarrowerInstances: stops nested instances and hands back a port to reuse', async () => {
+	const nested = spawnStandIn();
+	const unrelated = spawnStandIn();
+	const nestedPid = nested.pid!;
+	const unrelatedPid = unrelated.pid!;
+
+	writeRegistry([
+		sampleInstance({ pid: nestedPid, dir: '/tmp/dir1/dir2', port: 6543, isDirectory: true }),
+		sampleInstance({ pid: unrelatedPid, dir: '/tmp/other', port: 6544, isDirectory: true }),
+	]);
+
+	// Serving the parent /tmp/dir1 supersedes the nested /tmp/dir1/dir2 ...
+	const reused = await supersedeNarrowerInstances('/tmp/dir1');
+	assert.equal(reused, 6543, 'should reuse the stopped nested instance port');
+	assert.ok(await waitForExit(nestedPid), 'nested instance should be stopped');
+	// ... but leaves unrelated instances alone.
+	assert.equal(isAlive(unrelatedPid), true);
+
+	unrelated.kill('SIGKILL');
+	await waitForExit(unrelatedPid);
+});
+
+test('supersedeNarrowerInstances: returns undefined when nothing is nested', async () => {
+	writeRegistry([
+		sampleInstance({ pid: process.pid, dir: '/tmp/elsewhere', port: 6545, isDirectory: true }),
+	]);
+	assert.equal(await supersedeNarrowerInstances('/tmp/dir1'), undefined);
+});
+
 /* ----------------------------------------------------------------------------
  * CLI smoke tests (subprocess against the built bin)
  * ------------------------------------------------------------------------- */
@@ -372,6 +399,30 @@ test('cli: a file under an already-served folder reuses its port', async () => {
 	await waitForExit(pid);
 });
 
+test('cli: a sub-folder under an already-served folder reuses the parent server', async () => {
+	const standIn = spawnStandIn();
+	const pid = standIn.pid!;
+	const parentDir = path.join(tmpDir, 'parent');
+	const subDir = path.join(parentDir, 'sub');
+	mkdirSync(subDir, { recursive: true });
+	writeFileSync(path.join(subDir, 'a.md'), '# hi\n');
+
+	writeRegistry([sampleInstance({ pid, dir: parentDir, port: 6790, isDirectory: true })]);
+
+	const r = await runCli([subDir]);
+	assert.equal(r.code, 0);
+	assert.match(r.stdout, /Already serving a parent folder/);
+	assert.match(r.stdout, /localhost:6790/);
+
+	// It must NOT have started a new instance — the parent is untouched.
+	const reg = JSON.parse(readFileSync(registryFile(), 'utf8'));
+	assert.equal(reg.length, 1);
+	assert.equal(reg[0].pid, pid);
+
+	standIn.kill('SIGKILL');
+	await waitForExit(pid);
+});
+
 test('cli --stop: kills the instance serving a path and drops it from the registry', async () => {
 	const standIn = spawnStandIn();
 	const pid = standIn.pid!;
@@ -398,5 +449,5 @@ test('cli --stop: reports when nothing is serving the path', async () => {
 test('cli --stop: errors without a path', async () => {
 	const r = await runCli(['--stop']);
 	assert.equal(r.code, 1);
-	assert.match(r.stdout, /--stop needs a path/);
+	assert.match(r.stdout, /Missing path/);
 });

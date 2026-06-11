@@ -27,16 +27,18 @@ blogkit-md <path-to-markdown-file-or-directory> [options]
 
 ### Options
 
-| Option               | Description                                                       |
-| -------------------- | ----------------------------------------------------------------- |
-| `--port=<port>`      | Port to run the preview server on (default: random free port)     |
-| `-b`, `--background` | Run the preview server detached in the background                 |
-| `-t`, `--tear`       | Stop the instance already serving this path, then start fresh     |
-| `-s`, `--stop`       | Stop the instance serving the given path, then exit               |
-| `-l`, `--list`       | Interactively list running instances and stop any of them         |
-| `--non-interactive`  | With `-l`, print a plain `<port>\t<path>` list and exit            |
-| `-n`, `--no-open`    | Start the server without opening it in the browser                |
-| `-h`, `--help`       | Show help                                                         |
+The preview server always runs detached in the background; use `--list` or
+`--stop` to manage running instances.
+
+| Option              | Description                                                   |
+| ------------------- | ------------------------------------------------------------- |
+| `--port=<port>`     | Port to run the preview server on (default: random free port) |
+| `-t`, `--tear`      | Stop the instance already serving this path, then start fresh |
+| `-s`, `--stop`      | Stop the instance serving the given path, then exit           |
+| `-l`, `--list`      | Interactively list running instances and stop any of them     |
+| `--non-interactive` | With `-l`, print a plain `<port>\t<path>` list and exit        |
+| `-n`, `--no-open`   | Start the server without opening it in the browser            |
+| `-h`, `--help`      | Show help                                                     |
 
 ### Reusing running instances
 
@@ -62,9 +64,6 @@ blogkit-md ./posts
 
 # Preview on a specific port
 blogkit-md ./posts/my-post.md --port=3001
-
-# Run detached in the background
-blogkit-md ./posts --background
 
 # Start the server without opening the browser
 blogkit-md ./posts --no-open
