@@ -515,7 +515,7 @@ function reuseContainingDir(
 		.map(encodeURIComponent)
 		.join('/');
 	const url = isDirectory
-		? `http://localhost:${parent.port}/${subPath}`
+		? `http://localhost:${parent.port}/${subPath}/`
 		: `http://localhost:${parent.port}${fileUrlPath(parent.dir, inputPath)}`;
 	banner();
 	line(

@@ -414,7 +414,7 @@ test('cli: a sub-folder under an already-served folder reuses the parent server'
 	const r = await runCli([subDir]);
 	assert.equal(r.code, 0);
 	assert.match(r.stdout, /Already serving a parent folder/);
-	assert.match(r.stdout, /localhost:6790\/sub/);
+	assert.match(r.stdout, /localhost:6790\/sub\//);
 
 	// It must NOT have started a new instance — the parent is untouched.
 	const reg = JSON.parse(readFileSync(registryFile(), 'utf8'));
