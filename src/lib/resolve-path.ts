@@ -39,7 +39,8 @@ export const resolveDirectory = async (
 	const target = resolveSafePath(slug, dir);
 	if (!target) return null;
 	try {
-		return (await stat(target)).isDirectory() ? target : null;
+		const stats = await stat(target);
+		return stats.isDirectory() ? target : null;
 	} catch {
 		return null;
 	}

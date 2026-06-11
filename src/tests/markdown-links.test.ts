@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 
-import { collectMarkdownLinks } from '../../src/lib/markdown-links.ts';
+import { collectMarkdownLinks } from '../lib/markdown-links.ts';
 
 let root = '';
 
@@ -51,7 +51,8 @@ test('collectMarkdownLinks: href segments are URL-encoded, labels stay readable'
 });
 
 test('collectMarkdownLinks: links are sorted by label', async () => {
-	const labels = (await collectMarkdownLinks(root, root)).map(l => l.label);
+	const links = await collectMarkdownLinks(root, root);
+	const labels = links.map(l => l.label);
 	assert.deepEqual(labels, [...labels].toSorted((a, b) => a.localeCompare(b)));
 });
 

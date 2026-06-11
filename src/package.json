@@ -1,0 +1,4 @@
+{
+	"//": "Tests run as ESM so tsx resolves packages that only define an 'import' export condition (e.g. @san-siva/blogkit-md). Scoped here to keep the CJS bin build untouched.",
+	"type": "module"
+}

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 
-import { resolveDirectory, resolveSafePath } from '../../src/lib/resolve-path.ts';
+import { resolveDirectory, resolveSafePath } from '../lib/resolve-path.ts';
 
 let dir = '';
 
@@ -48,7 +48,8 @@ test('resolveSafePath: allows children whose own name starts with dots', () => {
 });
 
 test('resolveSafePath: returns null without a served dir', () => {
-	assert.equal(resolveSafePath(['a'], undefined), null);
+	// An unset env var is how the page actually hits this branch.
+	assert.equal(resolveSafePath(['a'], process.env.BLOGKIT_MD_UNSET), null);
 });
 
 test('resolveDirectory: returns the path for an existing directory', async () => {

@@ -1,6 +1,6 @@
 {
 	"name": "@san-siva/blogkit-md-cli",
-	"version": "0.1.31",
+	"version": "0.1.32",
 	"description": "CLI tool to preview markdown files as blogkit-md blog posts",
 	"bin": {
 		"blogkit-md": "./bin/blogkit-md"
@@ -15,7 +15,7 @@
 		"lint": "eslint . --config eslint.config.ts",
 		"fix": "eslint . --config eslint.config.ts --fix",
 		"pretest": "tsup",
-		"test": "node --test 'scripts/tests/*.test.ts'"
+		"test": "node --import tsx --import ./src/tests/style-stub-register.mjs --test 'scripts/tests/*.test.ts' 'src/tests/*.test.ts' 'src/tests/*.test.tsx'"
 	},
 	"dependencies": {
 		"@san-siva/blogkit": "^1.1.38",
@@ -42,6 +42,7 @@
 		"eslint-plugin-unicorn": "^65.0.0",
 		"jiti": "^2.7.0",
 		"tsup": "^8.0.0",
+		"tsx": "^4.22.4",
 		"typescript": "^5.0.0",
 		"typescript-eslint": "^8.60.1"
 	},
