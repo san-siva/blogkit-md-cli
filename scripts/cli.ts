@@ -1,4 +1,5 @@
 import { exec, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
 	mkdirSync,
 	openSync,
@@ -766,14 +767,38 @@ async function startServer(
 		for (const client of clients) client.write('data: reload\n\n');
 	};
 
+	// fs.watch fires on more than content edits — atomic-save renames, mtime
+	// touches, spurious duplicate events from the OS watcher — so a changed
+	// file's hash is checked before broadcasting. Otherwise the page reloads
+	// on events where the markdown itself never actually changed.
+	const lastHash = new Map<string, string>();
+	const hashOf = (file: string): string | undefined => {
+		try {
+			return createHash('sha1').update(readFileSync(file)).digest('hex');
+		} catch {
+			// File briefly missing mid-write (temp-file+rename saves); treat as
+			// unchanged rather than reloading on a file that may not exist yet.
+			return undefined;
+		}
+	};
+	const reloadIfChanged = (file: string) => {
+		const hash = hashOf(file);
+		if (hash === undefined || hash === lastHash.get(file)) return;
+		lastHash.set(file, hash);
+		broadcastReload();
+	};
+
 	if (isDirectory) {
 		watch(inputPath, { recursive: true }, (_, filename) => {
-			if (filename && filename.endsWith('.md')) broadcastReload();
+			if (filename && filename.endsWith('.md')) {
+				reloadIfChanged(path.join(inputPath, filename));
+			}
 		});
 	} else {
+		lastHash.set(inputPath, hashOf(inputPath) ?? '');
 		const markdownFilename = path.basename(inputPath);
 		watch(path.dirname(inputPath), (_, filename) => {
-			if (filename === markdownFilename) broadcastReload();
+			if (filename === markdownFilename) reloadIfChanged(inputPath);
 		});
 	}
 
