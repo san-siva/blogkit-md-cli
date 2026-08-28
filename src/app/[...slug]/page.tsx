@@ -5,10 +5,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import path from 'node:path';
 
-import { RenderDirectory } from '@/components/RenderDirectory';
-import { RenderFile } from '@/components/RenderFile';
-import { collectMarkdownLinks } from '@/lib/markdown-links';
-import { resolveDirectory, resolveSafePath } from '@/lib/resolve-path';
+import { RenderContent } from '../../components/RenderContent';
+import { collectMarkdownLinks } from '../../lib/markdown-links';
+import { resolveDirectory, resolveSafePath } from '../../lib/resolve-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,14 +54,22 @@ const NotePage = async ({ params }: Properties) => {
 				dirPath,
 				process.env.MARKDOWN_DIR!
 			);
-			return <RenderDirectory title={path.basename(dirPath)} links={links} />;
+			return (
+				<RenderContent
+					kind="directory"
+					title={path.basename(dirPath)}
+					links={links}
+				/>
+			);
 		}
 	}
 
 	if (!result) notFound();
 
 	const fallbackTitle = slug[slug.length - 1]?.replace(/-/g, ' ');
-	return <RenderFile result={result} fallbackTitle={fallbackTitle} />;
+	return (
+		<RenderContent kind="file" result={result} fallbackTitle={fallbackTitle} />
+	);
 };
 
 export default NotePage;

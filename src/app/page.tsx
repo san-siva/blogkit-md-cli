@@ -4,9 +4,8 @@ import { readMarkdownFile } from '@san-siva/blogkit-md';
 import type { Metadata } from 'next';
 import path from 'node:path';
 
-import { RenderDirectory } from '@/components/RenderDirectory';
-import { RenderFile } from '@/components/RenderFile';
-import { collectMarkdownLinks } from '@/lib/markdown-links';
+import { RenderContent } from '../components/RenderContent';
+import { collectMarkdownLinks } from '../lib/markdown-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,11 +35,11 @@ const Page = async () => {
 	if (process.env.MARKDOWN_DIR) {
 		const links = await getMarkdownLinks();
 		const title = path.basename(process.env.MARKDOWN_DIR);
-		return <RenderDirectory title={title} links={links} />;
+		return <RenderContent kind="directory" title={title} links={links} />;
 	}
 
 	const result = await getMarkdownFile();
-	return <RenderFile result={result} />;
+	return <RenderContent kind="file" result={result} />;
 };
 
 export default Page;

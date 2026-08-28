@@ -36,7 +36,9 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => (
 		<body
 			className={`${montserrat.variable} ${rubik.variable} ${jetbrainsMono.variable}`}
 		>
-			<div className={`${styles.page}`}>{children}</div>
+			<div className={`${styles.page} ${styles['page--no-max-width']}`}>
+				{children}
+			</div>
 		</body>
 	</html>
 );

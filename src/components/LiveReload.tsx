@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 import { useRouter } from 'next/navigation';
 
-import { createLiveReloadHandlers } from '@/lib/live-reload';
+import { createLiveReloadHandlers } from '../lib/live-reload';
 
 export const LiveReload = () => {
 	const router = useRouter();
