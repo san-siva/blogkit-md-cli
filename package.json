@@ -1,6 +1,6 @@
 {
 	"name": "@san-siva/blogkit-md-cli",
-	"version": "0.1.39",
+	"version": "0.1.40",
 	"description": "CLI tool to preview markdown files as blogkit-md blog posts",
 	"bin": {
 		"blogkit-md": "./bin/blogkit-md"
@@ -18,8 +18,8 @@
 		"test": "node --import tsx --import ./src/tests/style-stub-register.mjs --test 'scripts/tests/*.test.ts' 'src/tests/*.test.ts' 'src/tests/*.test.tsx'"
 	},
 	"dependencies": {
-		"@san-siva/blogkit": "^1.1.41",
-		"@san-siva/blogkit-md": "^0.3.19",
+		"@san-siva/blogkit": "^1.1.42",
+		"@san-siva/blogkit-md": "^0.3.20",
 		"@san-siva/stylekit": "^1.0.13",
 		"next": "16.2.1",
 		"react": "19.2.4",
