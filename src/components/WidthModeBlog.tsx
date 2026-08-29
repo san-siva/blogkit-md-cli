@@ -11,6 +11,7 @@ type Properties = {
 
 export const WidthModeBlog = ({ children }: Properties) => {
 	const [increasedWidthMode, setIncreasedWidthMode] = useState(false);
+	const [isTocEnabled, setIsTocEnabled] = useState(true);
 
 	const widthModeToggle: CheckListItem[] = [
 		{
@@ -19,10 +20,16 @@ export const WidthModeBlog = ({ children }: Properties) => {
 			isChecked: increasedWidthMode,
 			onClick: () => setIncreasedWidthMode(current => !current),
 		},
+		{
+			id: 'enable-toc',
+			children: <p>Enable TOC</p>,
+			isChecked: isTocEnabled,
+			onClick: () => setIsTocEnabled(current => !current),
+		},
 	];
 
 	return (
-		<Blog increasedWidthMode={increasedWidthMode}>
+		<Blog increasedWidthMode={increasedWidthMode} isTocEnabled={isTocEnabled}>
 			<CheckList items={widthModeToggle} hasMarginDown />
 			{children}
 		</Blog>
