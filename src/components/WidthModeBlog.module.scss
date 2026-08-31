@@ -1,0 +1,13 @@
+@use '@san-siva/stylekit/styles/index.module.scss' as styles;
+
+.toolbar {
+	position: fixed;
+	bottom: styles.space(3);
+	right: styles.space(3);
+	z-index: 10;
+	background: styles.$color--primary-light;
+	border: 1px solid styles.$color--grey-medium;
+	border-radius: styles.$border-radius--1;
+	box-shadow: styles.$color--shadow-dark;
+	padding: styles.space(2) styles.space(3);
+}

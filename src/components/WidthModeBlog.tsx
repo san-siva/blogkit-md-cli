@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { Blog, CheckList, type CheckListItem } from '@san-siva/blogkit';
 import type { ReactNode } from 'react';
 
+import styles from './WidthModeBlog.module.scss';
+
 type Properties = {
 	children: ReactNode;
 };
@@ -16,13 +18,13 @@ export const WidthModeBlog = ({ children }: Properties) => {
 	const widthModeToggle: CheckListItem[] = [
 		{
 			id: 'increased-width-mode',
-			children: <p>Increased width mode</p>,
+			children: <p>Wide layout</p>,
 			isChecked: increasedWidthMode,
 			onClick: () => setIncreasedWidthMode(current => !current),
 		},
 		{
 			id: 'enable-toc',
-			children: <p>Enable TOC</p>,
+			children: <p>Table of contents</p>,
 			isChecked: isTocEnabled,
 			onClick: () => setIsTocEnabled(current => !current),
 		},
@@ -30,7 +32,9 @@ export const WidthModeBlog = ({ children }: Properties) => {
 
 	return (
 		<Blog increasedWidthMode={increasedWidthMode} isTocEnabled={isTocEnabled}>
-			<CheckList items={widthModeToggle} hasMarginDown />
+			<div className={styles.toolbar}>
+				<CheckList items={widthModeToggle} />
+			</div>
 			{children}
 		</Blog>
 	);
