@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-
 import { Blog, CheckList, type CheckListItem } from '@san-siva/blogkit';
 import type { ReactNode } from 'react';
+
+import { useLayoutPreferences } from './useLayoutPreferences';
 
 import styles from './WidthModeBlog.module.scss';
 
@@ -12,21 +12,23 @@ type Properties = {
 };
 
 export const WidthModeBlog = ({ children }: Properties) => {
-	const [increasedWidthMode, setIncreasedWidthMode] = useState(false);
-	const [isTocEnabled, setIsTocEnabled] = useState(true);
+	const {
+		preferences: { increasedWidthMode, isTocEnabled },
+		toggle,
+	} = useLayoutPreferences();
 
 	const widthModeToggle: CheckListItem[] = [
 		{
 			id: 'increased-width-mode',
 			children: <p>Wide layout</p>,
 			isChecked: increasedWidthMode,
-			onClick: () => setIncreasedWidthMode(current => !current),
+			onClick: () => toggle('increasedWidthMode'),
 		},
 		{
 			id: 'enable-toc',
 			children: <p>Table of contents</p>,
 			isChecked: isTocEnabled,
-			onClick: () => setIsTocEnabled(current => !current),
+			onClick: () => toggle('isTocEnabled'),
 		},
 	];
 

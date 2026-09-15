@@ -20,7 +20,7 @@
 	"dependencies": {
 		"@san-siva/blogkit": "^1.1.44",
 		"@san-siva/blogkit-md": "^0.3.23",
-		"@san-siva/blogkit-md-cli": "^0.1.45",
+		"@san-siva/blogkit-md-cli": "^0.1.47",
 		"@san-siva/stylekit": "^1.0.14",
 		"next": "16.2.1",
 		"react": "19.2.4",
@@ -28,6 +28,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",
+		"@types/jsdom": "^30.0.0",
 		"@types/node": "^22",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
@@ -42,6 +43,7 @@
 		"eslint-plugin-simple-import-sort": "^13.0.0",
 		"eslint-plugin-unicorn": "^65.0.0",
 		"jiti": "^2.7.0",
+		"jsdom": "^29.1.1",
 		"tsup": "^8.0.0",
 		"tsx": "^4.22.4",
 		"typescript": "^5.0.0",
