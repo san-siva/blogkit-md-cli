@@ -1,0 +1,47 @@
+@use '@san-siva/stylekit/styles/index.module.scss' as styles;
+
+.wrapper {
+	position: fixed;
+	bottom: 0;
+	right: 0;
+	z-index: 10;
+	width: 200px;
+	height: 200px;
+	display: flex;
+	align-items: flex-end;
+	justify-content: flex-end;
+
+	&:hover .toolbar {
+		opacity: 1;
+	}
+}
+
+.toolbar {
+	-webkit-backdrop-filter: blur(19.6px);
+	backdrop-filter: blur(19.6px);
+	background-color: hsla(0, 0%, 97%, 0.82);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: styles.$border-radius--1;
+	padding: styles.space(1) styles.space(2);
+	margin: styles.space(3);
+	opacity: 0;
+	transition: opacity 0.3s ease-in-out;
+	width: min-contents;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: styles.space(1);
+
+	p {
+		font-size: styles.$font-size--very-small;
+		margin: 0;
+		padding: 0;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: flex;
+		align-items: center;
+		height: 100%;
+	}
+}

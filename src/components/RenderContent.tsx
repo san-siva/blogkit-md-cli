@@ -3,7 +3,7 @@ import { MarkdownSections, readMarkdownFile } from '@san-siva/blogkit-md';
 import Link from 'next/link';
 
 import { LiveReload } from './LiveReload';
-import { WidthModeBlog } from './WidthModeBlog';
+import { SettingsToolbar } from './SettingsToolbar';
 
 type MarkdownResult = Awaited<ReturnType<typeof readMarkdownFile>>;
 
@@ -17,7 +17,7 @@ export const RenderContent = (props: Props) => {
 	if (props.kind === 'directory') {
 		const { title, links } = props;
 		return (
-			<WidthModeBlog>
+			<SettingsToolbar>
 				<LiveReload />
 				<BlogHeader
 					title={[title]}
@@ -36,7 +36,7 @@ export const RenderContent = (props: Props) => {
 						))}
 					</ul>
 				)}
-			</WidthModeBlog>
+			</SettingsToolbar>
 		);
 	}
 
@@ -44,10 +44,10 @@ export const RenderContent = (props: Props) => {
 
 	if (!result.success) {
 		return (
-			<WidthModeBlog>
+			<SettingsToolbar>
 				<LiveReload />
 				<Callout type="warning">{result.error}</Callout>
-			</WidthModeBlog>
+			</SettingsToolbar>
 		);
 	}
 
@@ -55,7 +55,7 @@ export const RenderContent = (props: Props) => {
 	const resolvedTitle = title ?? fallbackTitle;
 
 	return (
-		<WidthModeBlog>
+		<SettingsToolbar>
 			<LiveReload />
 			{resolvedTitle && (
 				<BlogHeader
@@ -64,6 +64,6 @@ export const RenderContent = (props: Props) => {
 				/>
 			)}
 			<MarkdownSections rendered={rendered} />
-		</WidthModeBlog>
+		</SettingsToolbar>
 	);
 };
