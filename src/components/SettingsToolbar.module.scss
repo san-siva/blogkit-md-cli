@@ -26,7 +26,12 @@
 	margin: styles.space(3);
 	opacity: 0;
 	transition: opacity 0.3s ease-in-out;
-	width: min-contents;
+	// min-contents is not a CSS value, so this rule was dropped and the
+	// toolbar shrank to the wrapper, wrapping its labels. Size to the widest
+	// label instead, and don't let the flex parent squeeze it back down.
+	width: max-content;
+	flex: none;
+	white-space: nowrap;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
