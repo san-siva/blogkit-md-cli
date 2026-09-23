@@ -1,24 +1,34 @@
 import { BlogHeader, Callout } from '@san-siva/blogkit';
 import { MarkdownSections, readMarkdownFile } from '@san-siva/blogkit-md';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
-import { LiveReload } from './LiveReload';
 import { SettingsToolbar } from './SettingsToolbar';
 
 type MarkdownResult = Awaited<ReturnType<typeof readMarkdownFile>>;
 
 type LinkItem = { href: string; label: string };
 
-type Props =
-	| { kind: 'file'; result: MarkdownResult; fallbackTitle?: string }
-	| { kind: 'directory'; title: string; links: LinkItem[] };
+/**
+ * Rendered above the content. The CLI passes its live-reload client; a
+ * statically exported site leaves it out, having no SSE endpoint to listen to.
+ */
+type Shared = { liveReload?: ReactNode };
+
+type Props = Shared &
+	(
+		| { kind: 'file'; result: MarkdownResult; fallbackTitle?: string }
+		| { kind: 'directory'; title: string; links: LinkItem[] }
+	);
 
 export const RenderContent = (props: Props) => {
+	const { liveReload } = props;
+
 	if (props.kind === 'directory') {
 		const { title, links } = props;
 		return (
 			<SettingsToolbar>
-				<LiveReload />
+				{liveReload}
 				<BlogHeader
 					title={[title]}
 					desc={[`${links.length} markdown file${links.length === 1 ? '' : 's'}`]}
@@ -45,7 +55,7 @@ export const RenderContent = (props: Props) => {
 	if (!result.success) {
 		return (
 			<SettingsToolbar>
-				<LiveReload />
+				{liveReload}
 				<Callout type="warning">{result.error}</Callout>
 			</SettingsToolbar>
 		);
@@ -56,7 +66,7 @@ export const RenderContent = (props: Props) => {
 
 	return (
 		<SettingsToolbar>
-			<LiveReload />
+			{liveReload}
 			{resolvedTitle && (
 				<BlogHeader
 					title={[resolvedTitle]}

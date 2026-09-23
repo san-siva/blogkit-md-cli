@@ -4,6 +4,7 @@ import { readMarkdownFile } from '@san-siva/blogkit-md';
 import type { Metadata } from 'next';
 import path from 'node:path';
 
+import { LiveReload } from '../components/LiveReload';
 import { RenderContent } from '../components/RenderContent';
 import { collectMarkdownLinks } from '../lib/markdown-links';
 
@@ -35,11 +36,18 @@ const Page = async () => {
 	if (process.env.MARKDOWN_DIR) {
 		const links = await getMarkdownLinks();
 		const title = path.basename(process.env.MARKDOWN_DIR);
-		return <RenderContent kind="directory" title={title} links={links} />;
+		return (
+			<RenderContent
+				kind="directory"
+				title={title}
+				links={links}
+				liveReload={<LiveReload />}
+			/>
+		);
 	}
 
 	const result = await getMarkdownFile();
-	return <RenderContent kind="file" result={result} />;
+	return <RenderContent kind="file" result={result} liveReload={<LiveReload />} />;
 };
 
 export default Page;

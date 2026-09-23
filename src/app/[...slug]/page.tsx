@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import path from 'node:path';
 
+import { LiveReload } from '../../components/LiveReload';
 import { RenderContent } from '../../components/RenderContent';
 import { collectMarkdownLinks } from '../../lib/markdown-links';
 import { resolveDirectory, resolveSafePath } from '../../lib/resolve-path';
@@ -59,6 +60,7 @@ const NotePage = async ({ params }: Properties) => {
 					kind="directory"
 					title={path.basename(dirPath)}
 					links={links}
+					liveReload={<LiveReload />}
 				/>
 			);
 		}
@@ -68,7 +70,12 @@ const NotePage = async ({ params }: Properties) => {
 
 	const fallbackTitle = slug[slug.length - 1]?.replace(/-/g, ' ');
 	return (
-		<RenderContent kind="file" result={result} fallbackTitle={fallbackTitle} />
+		<RenderContent
+			kind="file"
+			result={result}
+			fallbackTitle={fallbackTitle}
+			liveReload={<LiveReload />}
+		/>
 	);
 };
 
