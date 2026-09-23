@@ -32,16 +32,4 @@
 	align-items: center;
 	justify-content: center;
 	gap: styles.space(1);
-
-	p {
-		font-size: styles.$font-size--very-small;
-		margin: 0;
-		padding: 0;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		display: flex;
-		align-items: center;
-		height: 100%;
-	}
 }
