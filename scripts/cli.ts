@@ -1,8 +1,10 @@
 import { exec, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+	existsSync,
 	mkdirSync,
 	openSync,
+	readdirSync,
 	readFileSync,
 	statSync,
 	watch,
@@ -763,32 +765,70 @@ async function startServer(
 		SSE_PORT: String(ssePort),
 	};
 
-	const broadcastReload = () => {
-		for (const client of clients) client.write('data: reload\n\n');
+	// 'change' = a file's content changed (only the page showing it needs to
+	// re-render); 'list' = a file appeared or disappeared (only directory
+	// indexes, which list names but not content, need to re-render). The route
+	// is the file's URL path without '.md', empty in single-file mode.
+	const broadcast = (event: 'change' | 'list', route: string) => {
+		for (const client of clients) {
+			client.write(`data: ${event}:${encodeURIComponent(route)}\n\n`);
+		}
 	};
+	const routeOf = (file: string) =>
+		isDirectory
+			? path
+					.relative(inputPath, file)
+					.replace(/\.md$/, '')
+					.split(path.sep)
+					.join('/')
+			: '';
 
 	// fs.watch fires on more than content edits — atomic-save renames, mtime
 	// touches, spurious duplicate events from the OS watcher — so a changed
 	// file's hash is checked before broadcasting. Otherwise the page reloads
-	// on events where the markdown itself never actually changed.
+	// on events where the markdown itself never actually changed. Every file
+	// is hashed up front so the first edit of an existing file is recognised
+	// as a content change rather than a new file.
 	const lastHash = new Map<string, string>();
 	const hashOf = (file: string): string | undefined => {
 		try {
 			return createHash('sha1').update(readFileSync(file)).digest('hex');
 		} catch {
-			// File briefly missing mid-write (temp-file+rename saves); treat as
-			// unchanged rather than reloading on a file that may not exist yet.
+			// File briefly missing mid-write (temp-file+rename saves).
 			return undefined;
 		}
 	};
 	const reloadIfChanged = (file: string) => {
 		const hash = hashOf(file);
-		if (hash === undefined || hash === lastHash.get(file)) return;
+		if (hash === undefined) {
+			// Missing may just be the gap in a temp-file+rename save; only a
+			// file that is still gone shortly after has really been removed.
+			setTimeout(() => {
+				if (existsSync(file) || !lastHash.delete(file)) return;
+				broadcast('list', routeOf(file));
+				broadcast('change', routeOf(file));
+			}, 150);
+			return;
+		}
+		const previous = lastHash.get(file);
+		if (hash === previous) return;
 		lastHash.set(file, hash);
-		broadcastReload();
+		if (previous === undefined) broadcast('list', routeOf(file));
+		broadcast('change', routeOf(file));
 	};
 
 	if (isDirectory) {
+		try {
+			for (const entry of readdirSync(inputPath, { recursive: true })) {
+				const name = String(entry);
+				if (name.endsWith('.md')) {
+					const file = path.join(inputPath, name);
+					lastHash.set(file, hashOf(file) ?? '');
+				}
+			}
+		} catch {
+			// Unreadable folder: every file then looks new on its first change.
+		}
 		watch(inputPath, { recursive: true }, (_, filename) => {
 			if (filename && filename.endsWith('.md')) {
 				reloadIfChanged(path.join(inputPath, filename));
