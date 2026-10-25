@@ -47,7 +47,7 @@ test('parsePreferences: defaults when nothing is stored', () => {
 });
 
 test('parsePreferences: round-trips both preferences', () => {
-	const stored = { increasedWidthMode: true, isTocEnabled: false };
+	const stored = { increasedWidthMode: false, isTocEnabled: false };
 	assert.deepEqual(parsePreferences(JSON.stringify(stored)), stored);
 });
 
@@ -63,12 +63,12 @@ test('parsePreferences: defaults for unparseable or non-object payloads', () => 
 
 test('parsePreferences: falls back per field, keeping the valid ones', () => {
 	assert.deepEqual(
-		parsePreferences(JSON.stringify({ increasedWidthMode: true })),
-		{ increasedWidthMode: true, isTocEnabled: true }
+		parsePreferences(JSON.stringify({ increasedWidthMode: false })),
+		{ increasedWidthMode: false, isTocEnabled: true }
 	);
 	assert.deepEqual(
 		parsePreferences(JSON.stringify({ increasedWidthMode: 'yes', isTocEnabled: false })),
-		{ increasedWidthMode: false, isTocEnabled: false }
+		{ increasedWidthMode: true, isTocEnabled: false }
 	);
 });
 
@@ -79,12 +79,12 @@ test('readPreferences: defaults when storage is absent (server render)', () => {
 
 test('readPreferences: reads the stored value under the shared key', () => {
 	const storage = memoryStorage(
-		JSON.stringify({ increasedWidthMode: true, isTocEnabled: false })
+		JSON.stringify({ increasedWidthMode: false, isTocEnabled: false })
 	);
 	withStorage(storage);
 
 	assert.deepEqual(readPreferences(), {
-		increasedWidthMode: true,
+		increasedWidthMode: false,
 		isTocEnabled: false,
 	});
 });
@@ -104,7 +104,7 @@ test('writePreferences: stores a value readPreferences can restore', () => {
 	const storage = memoryStorage();
 	withStorage(storage);
 
-	const preferences = { increasedWidthMode: true, isTocEnabled: false };
+	const preferences = { increasedWidthMode: false, isTocEnabled: false };
 	writePreferences(preferences);
 
 	assert.deepEqual(JSON.parse(storage.store.value ?? 'null'), preferences);

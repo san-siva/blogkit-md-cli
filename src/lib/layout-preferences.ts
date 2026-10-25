@@ -8,7 +8,7 @@ export type LayoutPreferences = {
 export const STORAGE_KEY = 'blogkit-md:layout-preferences';
 
 export const defaultPreferences: LayoutPreferences = {
-	increasedWidthMode: false,
+	increasedWidthMode: true,
 	isTocEnabled: true,
 };
 

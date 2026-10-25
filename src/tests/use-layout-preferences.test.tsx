@@ -112,7 +112,7 @@ const toggle = async (mounted: Mounted, key: keyof LayoutPreferences) => {
 test('useLayoutPreferences: first render uses the defaults, so SSR markup matches', async () => {
 	const tab = tabStorage({
 		[STORAGE_KEY]: JSON.stringify({
-			increasedWidthMode: true,
+			increasedWidthMode: false,
 			isTocEnabled: false,
 		}),
 	});
@@ -122,7 +122,7 @@ test('useLayoutPreferences: first render uses the defaults, so SSR markup matche
 
 	// Hydration safety: the stored value must not reach the first render.
 	assert.deepEqual(mounted.firstRender, {
-		increasedWidthMode: false,
+		increasedWidthMode: true,
 		isTocEnabled: true,
 	});
 	mounted.unmount();
@@ -131,7 +131,7 @@ test('useLayoutPreferences: first render uses the defaults, so SSR markup matche
 test('useLayoutPreferences: applies the stored choice after mount', async () => {
 	const tab = tabStorage({
 		[STORAGE_KEY]: JSON.stringify({
-			increasedWidthMode: true,
+			increasedWidthMode: false,
 			isTocEnabled: false,
 		}),
 	});
@@ -140,7 +140,7 @@ test('useLayoutPreferences: applies the stored choice after mount', async () => 
 	const mounted = await mountHook();
 
 	assert.deepEqual(mounted.latest().preferences, {
-		increasedWidthMode: true,
+		increasedWidthMode: false,
 		isTocEnabled: false,
 	});
 	mounted.unmount();
@@ -165,17 +165,17 @@ test('useLayoutPreferences: toggling persists both preferences', async () => {
 
 	await toggle(mounted, 'increasedWidthMode');
 	assert.deepEqual(JSON.parse(tab.read() ?? 'null'), {
-		increasedWidthMode: true,
+		increasedWidthMode: false,
 		isTocEnabled: true,
 	});
 
 	await toggle(mounted, 'isTocEnabled');
 	assert.deepEqual(mounted.latest().preferences, {
-		increasedWidthMode: true,
+		increasedWidthMode: false,
 		isTocEnabled: false,
 	});
 	assert.deepEqual(JSON.parse(tab.read() ?? 'null'), {
-		increasedWidthMode: true,
+		increasedWidthMode: false,
 		isTocEnabled: false,
 	});
 	mounted.unmount();
@@ -194,7 +194,7 @@ test('useLayoutPreferences: a remount (page reload) restores the last toggles', 
 	const reloaded = await mountHook();
 
 	assert.deepEqual(reloaded.latest().preferences, {
-		increasedWidthMode: true,
+		increasedWidthMode: false,
 		isTocEnabled: false,
 	});
 	reloaded.unmount();
@@ -212,12 +212,12 @@ test('useLayoutPreferences: toggling back off survives a reload too', async () =
 	const reloaded = await mountHook();
 
 	assert.deepEqual(reloaded.latest().preferences, {
-		increasedWidthMode: false,
+		increasedWidthMode: true,
 		isTocEnabled: true,
 	});
 	// An explicit "off" is stored, not left absent.
 	assert.deepEqual(JSON.parse(tab.read() ?? 'null'), {
-		increasedWidthMode: false,
+		increasedWidthMode: true,
 		isTocEnabled: true,
 	});
 	reloaded.unmount();
@@ -237,7 +237,7 @@ test('useLayoutPreferences: one tab’s toggles do not leak into another tab', a
 
 	// A second tab starts from the defaults, however tab A was left.
 	assert.deepEqual(inTabB.latest().preferences, {
-		increasedWidthMode: false,
+		increasedWidthMode: true,
 		isTocEnabled: true,
 	});
 	await toggle(inTabB, 'isTocEnabled');
@@ -245,11 +245,11 @@ test('useLayoutPreferences: one tab’s toggles do not leak into another tab', a
 
 	// ...and neither tab has overwritten the other's stored choice.
 	assert.deepEqual(JSON.parse(tabA.read() ?? 'null'), {
-		increasedWidthMode: true,
+		increasedWidthMode: false,
 		isTocEnabled: true,
 	});
 	assert.deepEqual(JSON.parse(tabB.read() ?? 'null'), {
-		increasedWidthMode: false,
+		increasedWidthMode: true,
 		isTocEnabled: false,
 	});
 });
@@ -261,7 +261,7 @@ test('useLayoutPreferences: a corrupt stored value falls back to the defaults', 
 	const mounted = await mountHook();
 
 	assert.deepEqual(mounted.latest().preferences, {
-		increasedWidthMode: false,
+		increasedWidthMode: true,
 		isTocEnabled: true,
 	});
 	mounted.unmount();
@@ -273,6 +273,6 @@ test('useLayoutPreferences: mounts and toggles without storage at all', async ()
 	const mounted = await mountHook();
 	await toggle(mounted, 'increasedWidthMode');
 
-	assert.equal(mounted.latest().preferences.increasedWidthMode, true);
+	assert.equal(mounted.latest().preferences.increasedWidthMode, false);
 	mounted.unmount();
 });

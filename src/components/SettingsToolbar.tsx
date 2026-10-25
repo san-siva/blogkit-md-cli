@@ -3,6 +3,7 @@
 import { Blog, CheckList, type CheckListItem } from '@san-siva/blogkit';
 import type { ReactNode } from 'react';
 
+import { useDeviceDetection } from './useDeviceDetection';
 import { useLayoutPreferences } from './useLayoutPreferences';
 
 import styles from './SettingsToolbar.module.scss';
@@ -16,6 +17,7 @@ export const SettingsToolbar = ({ children }: Properties) => {
 		preferences: { increasedWidthMode, isTocEnabled },
 		toggle,
 	} = useLayoutPreferences();
+	const { isMobile, isIpad } = useDeviceDetection();
 
 	const widthModeToggle: CheckListItem[] = [
 		{
@@ -34,11 +36,13 @@ export const SettingsToolbar = ({ children }: Properties) => {
 
 	return (
 		<Blog increasedWidthMode={increasedWidthMode} isTocEnabled={isTocEnabled}>
-			<div className={styles.wrapper}>
-				<div className={styles.toolbar}>
-					<CheckList items={widthModeToggle} />
+			{!isMobile && !isIpad && (
+				<div className={styles.wrapper}>
+					<div className={styles.toolbar}>
+						<CheckList items={widthModeToggle} />
+					</div>
 				</div>
-			</div>
+			)}
 			{children}
 		</Blog>
 	);
