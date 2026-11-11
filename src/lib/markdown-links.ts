@@ -1,6 +1,8 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
+import type { ExcludeMatcher } from './exclude';
+
 export type LinkItem = { href: string; label: string };
 
 /**
@@ -8,10 +10,12 @@ export type LinkItem = { href: string; label: string };
  * relative to `base` (the served MARKDOWN_DIR) so they stay valid no matter
  * which subdirectory is being listed; labels are relative to `root` so a
  * subdirectory listing isn't prefixed with its own name on every line.
+ * Entries (files or folders) matching `isExcluded` are skipped.
  */
 export async function collectMarkdownLinks(
 	root: string,
-	base: string
+	base: string,
+	isExcluded: ExcludeMatcher = () => false
 ): Promise<LinkItem[]> {
 	const links: LinkItem[] = [];
 
@@ -24,6 +28,7 @@ export async function collectMarkdownLinks(
 		}
 		for (const entry of entries) {
 			const fullPath = path.join(current, entry.name);
+			if (isExcluded(path.relative(base, fullPath))) continue;
 			if (entry.isDirectory()) {
 				await walk(fullPath);
 			} else if (entry.name.endsWith('.md')) {

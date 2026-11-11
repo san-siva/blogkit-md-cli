@@ -59,3 +59,10 @@ test('parseArgs: flags and path combine in any order', () => {
 	assert.equal(a.wantTear, true);
 	assert.equal(a.requestedPort, 4000);
 });
+
+test('parseArgs: --exclude accumulates repeated and comma-separated values', () => {
+	const a = parseArgs(['./posts', '--exclude=node_modules,drafts', '--exclude=*.tmp.md']);
+	assert.deepEqual(a.excludePatterns, ['node_modules', 'drafts', '*.tmp.md']);
+	assert.deepEqual(a.unknownFlags, []);
+	assert.deepEqual(parseArgs(['./posts']).excludePatterns, []);
+});

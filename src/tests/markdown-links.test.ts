@@ -60,3 +60,10 @@ test('collectMarkdownLinks: a missing directory yields an empty list', async () 
 	const links = await collectMarkdownLinks(path.join(root, 'gone'), root);
 	assert.deepEqual(links, []);
 });
+
+test('collectMarkdownLinks: excluded folders are skipped entirely', async () => {
+	mkdirSync(path.join(root, 'node_modules', 'pkg'), { recursive: true });
+	writeFileSync(path.join(root, 'node_modules', 'pkg', 'README.md'), '# x\n');
+	const links = await collectMarkdownLinks(root, root, p => p.split(path.sep).includes('node_modules'));
+	assert.deepEqual(links.map(l => l.label), ['a', 'sub / b', 'sub / nested / c']);
+});

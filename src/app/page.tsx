@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import { LiveReload } from '../components/LiveReload';
 import { RenderContent } from '../components/RenderContent';
+import { excludeFromEnvironment } from '../lib/exclude';
 import { collectMarkdownLinks } from '../lib/markdown-links';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ const getMarkdownFile = cache(() =>
 const getMarkdownLinks = cache(async () => {
 	const dir = process.env.MARKDOWN_DIR;
 	if (!dir) return [];
-	return collectMarkdownLinks(dir, dir);
+	return collectMarkdownLinks(dir, dir, excludeFromEnvironment());
 });
 
 export const generateMetadata = async (): Promise<Metadata> => {

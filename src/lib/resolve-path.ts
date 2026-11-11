@@ -45,3 +45,16 @@ export const resolveDirectory = async (
 		return null;
 	}
 };
+
+/**
+ * Links between docs are usually written against the file ('other.md'), so the
+ * URL slug can carry the extension. Drop it from the last segment so the page
+ * resolves 'other.md' and 'other' to the same file.
+ */
+export const stripMarkdownExtension = (slug: string[]): string[] => {
+	if (slug.length === 0) return slug;
+	const last = decodeURIComponent(slug[slug.length - 1]);
+	return /\.md$/i.test(last) && last.length > 3
+		? [...slug.slice(0, -1), last.replace(/\.md$/i, '')]
+		: slug;
+};

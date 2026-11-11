@@ -64,3 +64,10 @@ test('resolveDirectory: returns null for a file or a missing path', async () => 
 test('resolveDirectory: rejects traversal before touching the filesystem', async () => {
 	assert.equal(await resolveDirectory(['..'], dir), null);
 });
+
+test('stripMarkdownExtension: drops .md from the last segment only', async () => {
+	const { stripMarkdownExtension } = await import('../lib/resolve-path.ts');
+	assert.deepEqual(stripMarkdownExtension(['docs', 'as-built.md']), ['docs', 'as-built']);
+	assert.deepEqual(stripMarkdownExtension(['docs', 'as-built']), ['docs', 'as-built']);
+	assert.deepEqual(stripMarkdownExtension(['a.md', 'b']), ['a.md', 'b']);
+});

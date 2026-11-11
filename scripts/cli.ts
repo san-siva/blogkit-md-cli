@@ -366,6 +366,7 @@ export async function listInstancesInteractive(
 export interface ParsedArgs {
 	inputArg?: string;
 	requestedPort: number;
+	excludePatterns: string[];
 	wantList: boolean;
 	wantTear: boolean;
 	wantNoOpen: boolean;
@@ -380,6 +381,7 @@ export interface ParsedArgs {
 
 const KNOWN_FLAGS = new Set([
 	'--port',
+	'--exclude',
 	'--tear', '-t',
 	'--list', '-l', '--list-instances',
 	'--no-open', '-n',
@@ -399,8 +401,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
 		? Number.parseInt(portArgument.split('=', 2)[1], 10) || 0
 		: 0;
 
+	// --exclude=a,b and repeated --exclude=... both accumulate.
+	const excludePatterns = argv
+		.filter(a => a.startsWith('--exclude='))
+		.flatMap(a => a.slice('--exclude='.length).split(','))
+		.map(p => p.trim())
+		.filter(Boolean);
+
 	return {
 		inputArg: inputArgument,
+		excludePatterns,
 		requestedPort,
 		wantList:
 			flagNames.has('--list') ||
@@ -426,6 +436,9 @@ function printHelp(): void {
 	line(c.bold('Options'));
 	tree(
 		`${c.green('--port=<port>')}       run on a specific port (default: random free port)`
+	);
+	tree(
+		`${c.green('--exclude=<glob>')}    skip matching files/folders in directory mode (repeatable or comma-separated, e.g. node_modules)`
 	);
 	tree(
 		`${c.green('-t, --tear')}          stop the instance already serving this path, then start fresh`
@@ -465,6 +478,7 @@ function printHelp(): void {
 	line();
 }
 
+import { createExcludeMatcher } from '../src/lib/exclude.ts';
 import { stopAllAndExit, stopAndExit } from './cli/stop.ts';
 export { stopAllAndExit, stopAndExit };
 
@@ -629,6 +643,9 @@ async function launchInBackground(
 		// --no-open to it; everything else it can re-derive from the path.
 		const childArgs = [scriptPath, inputPath, `--port=${port}`, '--__detached'];
 		if (parsed.wantNoOpen) childArgs.push('--no-open');
+		for (const pattern of parsed.excludePatterns) {
+			childArgs.push(`--exclude=${pattern}`);
+		}
 		if (reclaimedPort) childArgs.push('--__port-reused');
 		const child = spawn(process.execPath, childArgs, {
 			detached: true,
@@ -760,7 +777,10 @@ async function startServer(
 	const nextEnvironment = {
 		...process.env,
 		...(isDirectory
-			? { MARKDOWN_DIR: inputPath }
+			? {
+					MARKDOWN_DIR: inputPath,
+					MARKDOWN_EXCLUDE: JSON.stringify(parsed.excludePatterns),
+				}
 			: { MARKDOWN_FILE: inputPath }),
 		SSE_PORT: String(ssePort),
 	};
@@ -774,6 +794,7 @@ async function startServer(
 			client.write(`data: ${event}:${encodeURIComponent(route)}\n\n`);
 		}
 	};
+	const isExcluded = createExcludeMatcher(parsed.excludePatterns);
 	const routeOf = (file: string) =>
 		isDirectory
 			? path
@@ -821,7 +842,7 @@ async function startServer(
 		try {
 			for (const entry of readdirSync(inputPath, { recursive: true })) {
 				const name = String(entry);
-				if (name.endsWith('.md')) {
+				if (name.endsWith('.md') && !isExcluded(name)) {
 					const file = path.join(inputPath, name);
 					lastHash.set(file, hashOf(file) ?? '');
 				}
@@ -830,7 +851,7 @@ async function startServer(
 			// Unreadable folder: every file then looks new on its first change.
 		}
 		watch(inputPath, { recursive: true }, (_, filename) => {
-			if (filename && filename.endsWith('.md')) {
+			if (filename && filename.endsWith('.md') && !isExcluded(filename)) {
 				reloadIfChanged(path.join(inputPath, filename));
 			}
 		});

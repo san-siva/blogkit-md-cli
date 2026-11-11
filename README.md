@@ -33,6 +33,7 @@ The preview server always runs detached in the background; use `--list` or
 | Option              | Description                                                   |
 | ------------------- | ------------------------------------------------------------- |
 | `--port=<port>`     | Port to run the preview server on (default: random free port) |
+| `--exclude=<glob>`  | Directory mode: skip matching files/folders (repeatable or comma-separated) |
 | `-t`, `--tear`      | Stop the instance already serving this path, then start fresh |
 | `-s`, `--stop`      | Stop the instance serving the given path, then exit           |
 | `-l`, `--list`      | Interactively list running instances and stop any of them     |
@@ -67,6 +68,9 @@ blogkit-md ./posts/my-post.md --port=3001
 
 # Start the server without opening the browser
 blogkit-md ./posts --no-open
+
+# Ignore folders/files (a pattern without '/' matches any path segment)
+blogkit-md ./docs --exclude=node_modules,'*.draft.md'
 
 # Restart the instance serving a path from scratch
 blogkit-md ./posts --tear

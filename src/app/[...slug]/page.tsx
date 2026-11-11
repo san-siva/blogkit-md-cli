@@ -7,8 +7,13 @@ import path from 'node:path';
 
 import { LiveReload } from '../../components/LiveReload';
 import { RenderContent } from '../../components/RenderContent';
+import { excludeFromEnvironment } from '../../lib/exclude';
 import { collectMarkdownLinks } from '../../lib/markdown-links';
-import { resolveDirectory, resolveSafePath } from '../../lib/resolve-path';
+import {
+	resolveDirectory,
+	resolveSafePath,
+	stripMarkdownExtension,
+} from '../../lib/resolve-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +22,10 @@ type Properties = {
 };
 
 const loadFile = cache(async (slug: string[]) => {
-	const target = resolveSafePath(slug, process.env.MARKDOWN_DIR);
+	const target = resolveSafePath(
+		stripMarkdownExtension(slug),
+		process.env.MARKDOWN_DIR
+	);
 	if (!target) return null;
 	return readMarkdownFile(`${target}.md`);
 });
@@ -53,7 +61,8 @@ const NotePage = async ({ params }: Properties) => {
 		if (dirPath) {
 			const links = await collectMarkdownLinks(
 				dirPath,
-				process.env.MARKDOWN_DIR!
+				process.env.MARKDOWN_DIR!,
+				excludeFromEnvironment()
 			);
 			return (
 				<RenderContent
@@ -68,7 +77,7 @@ const NotePage = async ({ params }: Properties) => {
 
 	if (!result) notFound();
 
-	const fallbackTitle = slug[slug.length - 1]?.replace(/-/g, ' ');
+	const fallbackTitle = stripMarkdownExtension(slug).at(-1)?.replace(/-/g, ' ');
 	return (
 		<RenderContent
 			kind="file"

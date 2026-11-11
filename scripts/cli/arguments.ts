@@ -1,6 +1,7 @@
 export interface ParsedArgs {
 	inputArg?: string;
 	requestedPort: number;
+	excludePatterns: string[];
 	wantList: boolean;
 	wantTear: boolean;
 	wantNoOpen: boolean;
@@ -15,6 +16,7 @@ export interface ParsedArgs {
 
 const KNOWN_FLAGS = new Set([
 	'--port',
+	'--exclude',
 	'--tear', '-t',
 	'--list', '-l', '--list-instances',
 	'--no-open', '-n',
@@ -34,8 +36,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
 		? Number.parseInt(portArgument.split('=', 2)[1], 10) || 0
 		: 0;
 
+	// --exclude=a,b and repeated --exclude=... both accumulate.
+	const excludePatterns = argv
+		.filter(a => a.startsWith('--exclude='))
+		.flatMap(a => a.slice('--exclude='.length).split(','))
+		.map(p => p.trim())
+		.filter(Boolean);
+
 	return {
 		inputArg: inputArgument,
+		excludePatterns,
 		requestedPort,
 		wantList:
 			flagNames.has('--list') ||
